@@ -38,11 +38,18 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "fbccefd7-0843-4cb9-873b-4256704cf6b5"
+      }
     }
   }
 }
