@@ -97,13 +97,10 @@
 //   },
 // });
 // app/(tabs)/index.tsx
-import { View, Text, Button, StyleSheet } from 'react-native';
-import { supabase } from '../../lib/supabase';
-import { useRouter } from 'expo-router';
+import { Button, StyleSheet, Text, View } from "react-native";
+import { supabase } from "../../lib/supabase";
 
 export default function Dashboard() {
-  const router = useRouter();
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
     // The _layout.tsx will automatically detect the logout and push you to login
@@ -113,7 +110,7 @@ export default function Dashboard() {
     <View style={styles.container}>
       <Text style={styles.title}>Welcome to the Guardian Dashboard</Text>
       <Text style={styles.subtitle}>System Status: Active</Text>
-      
+
       <View style={styles.card}>
         <Text>Listening for Threats...</Text>
       </View>
@@ -124,8 +121,20 @@ export default function Dashboard() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, justifyContent: 'center', alignItems: 'center' },
-  title: { fontSize: 22, fontWeight: 'bold', marginBottom: 10 },
-  subtitle: { fontSize: 16, color: 'green', marginBottom: 30 },
-  card: { padding: 20, backgroundColor: '#f0f0f0', borderRadius: 10, marginBottom: 20, width: '100%', alignItems: 'center' }
+  container: {
+    flex: 1,
+    padding: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  title: { fontSize: 22, fontWeight: "bold", marginBottom: 10 },
+  subtitle: { fontSize: 16, color: "green", marginBottom: 30 },
+  card: {
+    padding: 20,
+    backgroundColor: "#f0f0f0",
+    borderRadius: 10,
+    marginBottom: 20,
+    width: "100%",
+    alignItems: "center",
+  },
 });

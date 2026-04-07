@@ -1,8 +1,8 @@
 // app/_layout.tsx
-import { Slot, useRouter, useSegments } from 'expo-router';
-import { useEffect } from 'react';
-import { AuthProvider, useAuth } from '../contexts/AuthProvider';
-import { View, ActivityIndicator } from 'react-native';
+import { Slot, useRouter, useSegments } from "expo-router";
+import { useEffect } from "react";
+import { ActivityIndicator, View } from "react-native";
+import { AuthProvider, useAuth } from "../contexts/AuthProvider";
 
 const InitialLayout = () => {
   const { session, isLoading } = useAuth();
@@ -12,21 +12,19 @@ const InitialLayout = () => {
   useEffect(() => {
     if (isLoading) return;
 
-    const inAuthGroup = segments[0] === '(auth)';
-    
     // If NOT logged in, kick them to Login Page
     if (!session) {
-      router.replace('/login');
-    } 
-    // If logged in, kick them to Home Page (index)
-    else if (session && segments[0] === 'login') {
-      router.replace('/'); 
+      router.replace("/login");
     }
-  }, [session, isLoading]);
+    // If logged in, kick them to Home Page (index)
+    else if (session && segments[0] === "login") {
+      router.replace("/");
+    }
+  }, [session, isLoading, router, segments]);
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" />
       </View>
     );
