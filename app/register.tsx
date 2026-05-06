@@ -22,8 +22,8 @@ export default function RegisterScreen() {
     // 1. Validation Logic
     if (password.length < 6) {
       Alert.alert(
-        "Weak Password",
-        "Password must be at least 6 characters long.",
+        "දුර්වල මුරපදයක්",
+        "මුරපදය අවම වශයෙන් අක්ෂර 6 ක් සඳහා විය යුතුය.",
       );
       return;
     }
@@ -37,20 +37,20 @@ export default function RegisterScreen() {
     setLoading(false);
 
     if (error) {
-      Alert.alert("Registration Failed", error.message);
+      Alert.alert("ලියාපදිංචි කිරීම අසාර්ථකයි", error.message);
     } else {
-      Alert.alert("Success", "Account created! Please log in.");
+      Alert.alert("සාර්ථකයි", "ගිණුම සෑදී ඇත! කරුණාකර ලොග් වන්න.");
       router.back(); // Go back to login screen
     }
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Create Account</Text>
+      <Text style={styles.title}>ගිණුමක් තනන්න</Text>
 
       <TextInput
         style={styles.input}
-        placeholder="Email"
+        placeholder="ඊමේල්"
         onChangeText={setEmail}
         value={email}
         autoCapitalize="none"
@@ -59,7 +59,7 @@ export default function RegisterScreen() {
 
       <TextInput
         style={styles.input}
-        placeholder="Password (Min 6 chars)"
+        placeholder="මුරපදය (අවම වශයෙන් අක්ෂර 6)"
         secureTextEntry={true}
         onChangeText={setPassword}
         value={password}
@@ -67,7 +67,7 @@ export default function RegisterScreen() {
 
       <View style={styles.buttonContainer}>
         <Button
-          title={loading ? "Creating..." : "Sign Up"}
+          title={loading ? "නිර්මාණය කරමින්..." : "ගිණුම නිර්මාණය කරන්න"}
           onPress={signUpWithEmail}
           color="#2196F3"
         />
@@ -75,7 +75,7 @@ export default function RegisterScreen() {
 
       <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
         <Text style={{ color: "blue", textAlign: "center" }}>
-          Already have an account? Login
+          දැනටමත් ගිණුමක් තිබේද? ලොග් වන්න
         </Text>
       </TouchableOpacity>
     </View>

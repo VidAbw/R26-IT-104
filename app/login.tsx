@@ -39,6 +39,8 @@ export default function LoginScreen() {
         simpleExplanation: "සරල පැහැදිලි කිරීම",
         reportingGuidance: "පැමිණිලි කිරීමේ උපදෙස්",
         emergencyContacts: "හදිසි සම්බන්ධතා",
+        ncpaLabel: "ජාතික ළමා ආරක්ෂක කොමිසම",
+        policeLabel: "පොලීසිය",
         lawsFound: "හමුවූ නීති කොටස්",
         emptyError: "කරුණාකර සිද්ධියේ විස්තරයක් ඇතුළත් කරන්න",
         followSteps: "මෙම පියවර අනුගමනය කරමින් සුදුසු ක්‍රියාමාර්ගයක් ගන්න:",
@@ -64,6 +66,8 @@ export default function LoginScreen() {
         simpleExplanation: "Simple Explanation",
         reportingGuidance: "Reporting Guidance",
         emergencyContacts: "Emergency Contacts",
+        ncpaLabel: "NCPA",
+        policeLabel: "Police",
         lawsFound: "Relevant Laws Found",
         emptyError: "Please enter an incident description",
         followSteps: "Follow these steps to take appropriate action:",
@@ -71,7 +75,6 @@ export default function LoginScreen() {
 
   const handleClear = () => {
     setDescription("")
-    setLanguage("en")
     setError("")
     setResult(null)
   }
@@ -99,7 +102,7 @@ export default function LoginScreen() {
     }
   }
 
-  const parseRoadmapSteps = (roadmap: string[]) => {
+  const parseRoadmapSteps = (roadmap: string[]): Array<{ number: string; title: string; description: string }> => {
     return roadmap.map((step) => {
       const match = step.match(/^(\d+)\.\s*(.+):\s*(.+)$/);
       if (match) {
@@ -151,7 +154,7 @@ export default function LoginScreen() {
                   language === "en" && styles.activeLanguageButtonText,
                 ]}
               >
-                English
+                {uiText.english}
               </Text>
             </TouchableOpacity>
 
@@ -168,7 +171,7 @@ export default function LoginScreen() {
                   language === "si" && styles.activeLanguageButtonText,
                 ]}
               >
-                Sinhala
+                {uiText.sinhala}
               </Text>
             </TouchableOpacity>
           </View>
@@ -264,14 +267,14 @@ export default function LoginScreen() {
               </View>
               <Text style={styles.roadmapSubtitle}>{uiText.followSteps}</Text>
               <View style={styles.roadmapSection}>
-                {parseRoadmapSteps(result.decision_roadmap).map((step, index) => (
+                {parseRoadmapSteps(result.decision_roadmap).map((step: { number: string; title: string; description: string }, index) => (
                   <View key={index} style={styles.roadmapStep}>
                     <View style={styles.stepNumber}>
                       <Text style={styles.stepNumberText}>{index + 1}</Text>
                     </View>
                     <View style={styles.stepContent}>
                       {step.title && <Text style={styles.stepTitle}>{step.title}</Text>}
-                      <Text style={styles.stepDescription}>{step.description || step}</Text>
+                      <Text style={styles.stepDescription}>{step.description}</Text>
                     </View>
                   </View>
                 ))}
@@ -286,11 +289,11 @@ export default function LoginScreen() {
             </View>
             <View style={styles.emergencyContent}>
               <View style={styles.emergencyContact}>
-                <Text style={styles.emergencyContactLabel}>NCPA</Text>
+                <Text style={styles.emergencyContactLabel}>{uiText.ncpaLabel}</Text>
                 <Text style={styles.emergencyContactNumber}>1929</Text>
               </View>
               <View style={styles.emergencyContact}>
-                <Text style={styles.emergencyContactLabel}>Police</Text>
+                <Text style={styles.emergencyContactLabel}>{uiText.policeLabel}</Text>
                 <Text style={styles.emergencyContactNumber}>119</Text>
               </View>
             </View>
