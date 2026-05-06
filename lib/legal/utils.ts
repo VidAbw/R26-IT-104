@@ -1,0 +1,62 @@
+/**
+ * Utility functions for the Legal RAG system
+ */
+
+export interface RoadmapStep {
+  number: string;
+  title: string;
+  description: string;
+}
+
+/**
+ * Parse roadmap steps from an array of strings
+ * Expects format: "1. Title: Description"
+ */
+export function parseRoadmapSteps(roadmap: string[]): RoadmapStep[] {
+  return roadmap.map((step) => {
+    const match = step.match(/^(\d+)\.\s*(.+):\s*(.+)$/);
+    if (match) {
+      return {
+        number: match[1],
+        title: match[2],
+        description: match[3],
+      };
+    }
+    return {
+      number: "",
+      title: "",
+      description: step,
+    };
+  });
+}
+
+/**
+ * Format abuse category name for display
+ */
+export function formatAbuseCategory(category: string): string {
+  return category
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
+/**
+ * Validate legal query input
+ */
+export function validateLegalQuery(description: string): { valid: boolean; error?: string } {
+  const trimmed = description.trim();
+  
+  if (!trimmed) {
+    return { valid: false, error: "Description cannot be empty" };
+  }
+  
+  if (trimmed.length < 10) {
+    return { valid: false, error: "Description must be at least 10 characters" };
+  }
+  
+  if (trimmed.length > 5000) {
+    return { valid: false, error: "Description cannot exceed 5000 characters" };
+  }
+  
+  return { valid: true };
+}

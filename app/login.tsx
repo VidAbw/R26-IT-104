@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native"
-import { queryLegalRAG } from "../lib/legalApi"
+import { parseRoadmapSteps, queryLegalRAG } from "../lib/legal"
 
 export default function LoginScreen() {
   const [description, setDescription] = useState("")
@@ -92,7 +92,7 @@ export default function LoginScreen() {
     try {
       const data = await queryLegalRAG({
         description,
-        language,
+        language: language as "en" | "si",
       })
       setResult(data)
     } catch (err: any) {
@@ -100,16 +100,6 @@ export default function LoginScreen() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const parseRoadmapSteps = (roadmap: string[]): Array<{ number: string; title: string; description: string }> => {
-    return roadmap.map((step) => {
-      const match = step.match(/^(\d+)\.\s*(.+):\s*(.+)$/);
-      if (match) {
-        return { number: match[1], title: match[2], description: match[3] };
-      }
-      return { number: "", title: "", description: step };
-    });
   }
 
   return (
