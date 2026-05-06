@@ -2,13 +2,16 @@
 import { useRouter } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    Button,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { supabase } from "../lib/supabase";
 
@@ -19,11 +22,15 @@ export default function RegisterScreen() {
   const router = useRouter();
 
   async function signUpWithEmail() {
-    // 1. Validation Logic
+    if (!email || !password) {
+      Alert.alert("Error", "Please fill in all fields");
+      return;
+    }
+
     if (password.length < 6) {
       Alert.alert(
-        "දුර්වල මුරපදයක්",
-        "මුරපදය අවම වශයෙන් අක්ෂර 6 ක් සඳහා විය යුතුය.",
+        "Weak Password",
+        "Password must be at least 6 characters long.",
       );
       return;
     }
@@ -37,66 +44,182 @@ export default function RegisterScreen() {
     setLoading(false);
 
     if (error) {
-      Alert.alert("ලියාපදිංචි කිරීම අසාර්ථකයි", error.message);
+      Alert.alert("Registration Failed", error.message);
     } else {
-      Alert.alert("සාර්ථකයි", "ගිණුම සෑදී ඇත! කරුණාකර ලොග් වන්න.");
+      Alert.alert("Success", "Account created! Please log in.");
       router.back(); // Go back to login screen
     }
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>ගිණුමක් තනන්න</Text>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.container}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.header}>
+          <View style={styles.logoContainer}>
+            <Text style={styles.logoText}>G</Text>
+          </View>
+          <Text style={styles.title}>Create Account</Text>
+          <Text style={styles.subtitle}>Join Guardian to start protecting</Text>
+        </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="ඊමේල්"
-        onChangeText={setEmail}
-        value={email}
-        autoCapitalize="none"
-        keyboardType="email-address"
-      />
+        <View style={styles.formCard}>
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Email Address</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="name@example.com"
+              placeholderTextColor="#94a3b8"
+              onChangeText={setEmail}
+              value={email}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+          </View>
 
-      <TextInput
-        style={styles.input}
-        placeholder="මුරපදය (අවම වශයෙන් අක්ෂර 6)"
-        secureTextEntry={true}
-        onChangeText={setPassword}
-        value={password}
-      />
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Min. 6 characters"
+              placeholderTextColor="#94a3b8"
+              secureTextEntry={true}
+              onChangeText={setPassword}
+              value={password}
+            />
+          </View>
 
-      <View style={styles.buttonContainer}>
-        <Button
-          title={loading ? "නිර්මාණය කරමින්..." : "ගිණුම නිර්මාණය කරන්න"}
-          onPress={signUpWithEmail}
-          color="#2196F3"
-        />
-      </View>
+          <TouchableOpacity
+            style={styles.registerButton}
+            onPress={signUpWithEmail}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.registerButtonText}>Create Account</Text>
+            )}
+          </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
-        <Text style={{ color: "blue", textAlign: "center" }}>
-          දැනටමත් ගිණුමක් තිබේද? ලොග් වන්න
-        </Text>
-      </TouchableOpacity>
-    </View>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>Already have an account? </Text>
+            <TouchableOpacity onPress={() => router.back()}>
+              <Text style={styles.loginLink}>Login here</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", padding: 20 },
+  container: {
+    flex: 1,
+    backgroundColor: "#f8fafc",
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+    padding: 24,
+  },
+  header: {
+    alignItems: "center",
+    marginBottom: 40,
+  },
+  logoContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    backgroundColor: "#2563eb",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
+    shadowColor: "#2563eb",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  logoText: {
+    color: "#fff",
+    fontSize: 40,
+    fontWeight: "900",
+  },
   title: {
-    fontSize: 24,
-    fontWeight: "bold",
+    fontSize: 32,
+    fontWeight: "800",
+    color: "#1e293b",
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#64748b",
+  },
+  formCard: {
+    backgroundColor: "#fff",
+    borderRadius: 24,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "#f1f5f9",
+  },
+  inputContainer: {
     marginBottom: 20,
-    textAlign: "center",
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#475569",
+    marginBottom: 8,
+    marginLeft: 4,
   },
   input: {
-    height: 50,
-    borderColor: "#ccc",
+    height: 56,
+    backgroundColor: "#f8fafc",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: "#1e293b",
     borderWidth: 1,
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 12,
+    borderColor: "#e2e8f0",
   },
-  buttonContainer: { marginTop: 10 },
+  registerButton: {
+    height: 56,
+    backgroundColor: "#2563eb",
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 12,
+    shadowColor: "#2563eb",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  registerButtonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  footer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 24,
+  },
+  footerText: {
+    color: "#64748b",
+    fontSize: 15,
+  },
+  loginLink: {
+    color: "#2563eb",
+    fontSize: 15,
+    fontWeight: "700",
+  },
 });
