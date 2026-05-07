@@ -7,88 +7,140 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
+  Platform,
 } from "react-native"
+import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons"
 import { parseRoadmapSteps, queryLegalRAG } from "../../lib/legal"
 
 export default function LegalGuidanceScreen() {
+  const { width } = useWindowDimensions()
+  const isDesktop = width > 1024
+  
   const [description, setDescription] = useState("")
   const [language, setLanguage] = useState("en")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [validationError, setValidationError] = useState("")
   const [result, setResult] = useState<any>(null)
 
   const uiText = language === "si"
     ? {
-        title: "ළමා අපයෝජන නීතිමය මාර්ගෝපදේශ",
-        subtitle: "සිද්ධිය පිළිබඳ විස්තරයක් ඇතුළත් කර නීතිමය මාර්ගෝපදේශ, අදාළ නීති කොටස් සහ ක්‍රියාමාර්ග සැලැස්ම ලබාගන්න.",
-        incidentDescription: "සිද්ධියේ විස්තරය",
-        incidentPlaceholder: "අපයෝජනයට අදාල සිද්ධියේ විස්තරය ඇතුළත් කරන්න",
-        language: "භාෂාව",
-        english: "ඉංග්‍රීසි",
-        sinhala: "සිංහල",
-        submit: "ඉදිරිපත් කරන්න",
+        title: "Child Abuse Legal Guidance",
+        subtitle: "Bilingual legal information & guidance for Sri Lanka | ද්විභාෂා නීති මාර්ගෝපදේශ",
+        describeTitle: "සිදුවූ දේ විස්තර කරන්න",
+        describeSubtitle: "අදාළ නීතිමය මාර්ගෝපදේශ සොයා ගැනීමට සිද්ධියේ විස්තර බෙදා ගන්න.",
+        placeholder: "සිදුවූ දේ පිළිබඳ විස්තරයක් ඇතුළත් කරන්න (උදා: මාර්ගගත අපයෝජනය, ශාරීරික හානිය, නොසලකා හැරීම, ආදිය)",
+        privacyNotice: "ඔබේ තොරතුරු රහසිගත වන අතර මාර්ගෝපදේශ සැපයීම සඳහා පමණක් භාවිතා වේ.",
         clear: "මකන්න",
-        loading: "නීතිමය මාර්ගෝපදේශ ලබාගනිමින් පවතී...",
-        result: "ප්‍රතිඵල",
+        submit: "ඉදිරිපත් කරන්න",
         detectedLanguage: "හඳුනාගත් භාෂාව",
         abuseCategory: "අපයෝජන වර්ගය",
-        relevantLaws: "අදාළ නීති කොටස්",
+        relevantLawsFound: "හමුවූ අදාළ නීති",
+        sections: "වගන්ති",
+        relevantLawsTitle: "අදාළ නීති",
+        relevantLawsSubtitle: "මෙම තත්වයට අදාළ විය හැකි නීති සහ වගන්ති.",
+        whatItMeans: "එයින් අදහස් කරන්නේ කුමක්ද:",
+        reportingGuidance: "පැමිණිලි කිරීමේ උපදෙස්:",
         decisionRoadmap: "ක්‍රියාමාර්ග සැලැස්ම",
-        section: "වගන්තිය",
-        titleLabel: "ශීර්ෂය",
-        simpleExplanation: "සරල පැහැදිලි කිරීම",
-        reportingGuidance: "පැමිණිලි කිරීමේ උපදෙස්",
-        emergencyContacts: "හදිසි සම්බන්ධතා",
-        ncpaLabel: "ජාතික ළමා ආරක්ෂක කොමිසම",
-        policeLabel: "පොලීසිය",
-        lawsFound: "හමුවූ නීති කොටස්",
-        emptyError: "කරුණාකර සිද්ධියේ විස්තරයක් ඇතුළත් කරන්න",
-        followSteps: "මෙම පියවර අනුගමනය කරමින් සුදුසු ක්‍රියාමාර්ගයක් ගන්න:",
+        roadmapSubtitle: "ආරක්ෂිත සහ නිවැරදි ක්‍රියාමාර්ග ගැනීමට මෙම පියවර අනුගමනය කරන්න.",
+        legalDisclaimer: "මෙම තොරතුරු මාර්ගෝපදේශ සඳහා පමණක් වන අතර වෘත්තීය නීති උපදෙස් සඳහා ආදේශකයක් නොවේ.",
+        importantContacts: "වැදගත් සම්බන්ධතා",
+        reachOut: "සහාය සඳහා සම්බන්ධ වන්න.",
+        ncpa: "NCPA උපකාරක අංකය",
+        ncpaSub: "ජාතික ළමා ආරක්ෂක අධිකාරිය",
+        police: "පොලිස් හදිසි අංකය",
+        policeSub: "ශ්‍රී ලංකා පොලිසිය",
+        privacyMatters: "ඔබේ රහස්‍යභාවය වැදගත් වේ",
+        privacyDetails: "ඔබ ලබා දෙන සියලුම තොරතුරු රහසිගත සහ ආරක්ෂිතයි. එය භාවිතා කරනුයේ සුදුසු නීතිමය මාර්ගෝපදේශ සහ සහාය ලබා දීමට පමණි.",
+        immediateDanger: "දරුවෙකු ක්ෂණික අනතුරක සිටී නම්, වහාම 119 හෝ 1929 අමතන්න.",
+        about: "පිළිබඳව",
+        english: "English",
+        sinhala: "සිංහල",
+        detected: "හඳුනාගත්තා",
+        laws: "නීති",
+        validationError: "කරුණාකර අර්ථවත් අපයෝජනයට අදාළ සිද්ධි විස්තරයක් ඇතුළත් කරන්න.",
       }
     : {
         title: "Child Abuse Legal Guidance",
-        subtitle: "Enter an incident description to receive legal guidance, relevant legal sections, and a clear decision roadmap.",
-        incidentDescription: "Incident Description",
-        incidentPlaceholder: "Enter abuse-related incident description",
-        language: "Language",
-        english: "English",
-        sinhala: "Sinhala",
-        submit: "Submit",
+        subtitle: "Bilingual legal information & guidance for Sri Lanka | ද්විභාෂා නීති මාර්ගෝපදේශ",
+        describeTitle: "Describe what happened",
+        describeSubtitle: "Share the details of the incident to find relevant legal guidance.",
+        placeholder: "Type or paste a description of what happened (e.g., online abuse, physical harm, neglect, etc.)",
+        privacyNotice: "Your information is private and used only to provide guidance.",
         clear: "Clear",
-        loading: "Loading legal guidance...",
-        result: "Result",
+        submit: "Submit",
         detectedLanguage: "Detected Language",
         abuseCategory: "Abuse Category",
-        relevantLaws: "Relevant Laws",
+        relevantLawsFound: "Relevant Laws Found",
+        sections: "sections",
+        relevantLawsTitle: "Relevant Laws",
+        relevantLawsSubtitle: "Laws and sections that may apply to this situation.",
+        whatItMeans: "What it means:",
+        reportingGuidance: "Reporting Guidance:",
         decisionRoadmap: "Decision Roadmap",
-        section: "Section",
-        titleLabel: "Title",
-        simpleExplanation: "Simple Explanation",
-        reportingGuidance: "Reporting Guidance",
-        emergencyContacts: "Emergency Contacts",
-        ncpaLabel: "NCPA",
-        policeLabel: "Police",
-        lawsFound: "Relevant Laws Found",
-        emptyError: "Please enter an incident description",
-        followSteps: "Follow these steps to take appropriate action:",
+        roadmapSubtitle: "Follow these steps to take safe and correct action.",
+        legalDisclaimer: "This information is for guidance only and not a substitute for professional legal advice.",
+        importantContacts: "Important Contacts",
+        reachOut: "Reach out for help and support.",
+        ncpa: "NCPA Helpline",
+        ncpaSub: "National Child Protection Authority",
+        police: "Police Emergency",
+        policeSub: "Sri Lanka Police",
+        privacyMatters: "Your Privacy Matters",
+        privacyDetails: "All information you provide is confidential and secure. It is used only to deliver appropriate legal guidance and support.",
+        immediateDanger: "If a child is in immediate danger, call 119 or 1929 right away.",
+        about: "About",
+        english: "English",
+        sinhala: "සිංහල",
+        detected: "Detected",
+        laws: "Laws",
+        validationError: "Please enter a meaningful abuse-related incident description.",
       }
 
   const handleClear = () => {
     setDescription("")
     setError("")
+    setValidationError("")
     setResult(null)
   }
 
+  const validateIncidentDescription = (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return uiText.validationError;
+    
+    // Length check
+    if (trimmed.length < 15) return uiText.validationError;
+
+    // Pattern checks (gibberish)
+    const repeatedCharPattern = /(.)\1{4,}/; // e.g. aaaaa
+    if (repeatedCharPattern.test(trimmed)) return uiText.validationError;
+
+    // Random keyboard patterns (common in asdf, qwerty etc)
+    const randomPattern = /[asdfghjkl]{5,}|[qwertyuiop]{5,}|[zxcvbnm]{5,}/i;
+    if (randomPattern.test(trimmed)) return uiText.validationError;
+
+    // Word count check - needs at least a few real words
+    const words = trimmed.split(/\s+/).filter(w => w.length >= 2);
+    if (words.length < 3) return uiText.validationError;
+
+    // Check if mostly special characters
+    const alphanumeric = trimmed.replace(/[^a-zA-Z0-9\u0D80-\u0DFF]/g, "");
+    if (alphanumeric.length < trimmed.length * 0.4) return uiText.validationError;
+
+    return null;
+  };
+
   const handleSubmit = async () => {
-    if (!description.trim()) {
-      setError(uiText.emptyError)
-      return
+    const vError = validateIncidentDescription(description);
+    if (vError) {
+      setValidationError(vError);
+      return;
     }
 
     setLoading(true)
     setError("")
-    setResult(null)
-
+    setValidationError("")
     try {
       const data = await queryLegalRAG({
         description,
@@ -102,570 +154,946 @@ export default function LegalGuidanceScreen() {
     }
   }
 
+  const RoadmapStepIcon = ({ index }: { index: number }) => {
+    const icons = [
+      <Ionicons name="chatbubble-ellipses-outline" size={24} color="#3b82f6" />,
+      <Ionicons name="call-outline" size={24} color="#8b5cf6" />,
+      <Ionicons name="shield-checkmark-outline" size={24} color="#10b981" />,
+      <Ionicons name="folder-open-outline" size={24} color="#f59e0b" />,
+      <Ionicons name="people-outline" size={24} color="#ef4444" />,
+    ]
+    return icons[index] || <Ionicons name="ellipse-outline" size={24} color="#64748b" />
+  }
+
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      {/* Hero Section */}
-      <View style={styles.heroSection}>
-        <Text style={styles.mainTitle}>{uiText.title}</Text>
-        <Text style={styles.subtitle}>{uiText.subtitle}</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <View style={styles.logoContainer}>
+            <MaterialCommunityIcons name="shield-account" size={32} color="#2563eb" />
+          </View>
+          <View>
+            <Text style={styles.headerTitle}>{uiText.title}</Text>
+            <Text style={styles.headerSubtitle}>{uiText.subtitle}</Text>
+          </View>
+        </View>
+        <View style={styles.headerRight}>
+          <View style={styles.languageSwitcher}>
+            <TouchableOpacity 
+              style={[styles.langBtn, language === 'en' && styles.langBtnActive]}
+              onPress={() => setLanguage('en')}
+            >
+              <Ionicons name="globe-outline" size={18} color={language === 'en' ? '#fff' : '#2563eb'} />
+              <Text style={[styles.langBtnText, language === 'en' && styles.langBtnTextActive]}>{uiText.english}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.langBtn, language === 'si' && styles.langBtnActive]}
+              onPress={() => setLanguage('si')}
+            >
+              <MaterialCommunityIcons name="translate" size={18} color={language === 'si' ? '#fff' : '#64748b'} />
+              <Text style={[styles.langBtnText, language === 'si' && styles.langBtnTextActive]}>{uiText.sinhala}</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity style={styles.aboutBtn}>
+            <Ionicons name="information-circle-outline" size={20} color="#64748b" />
+            <Text style={styles.aboutBtnText}>{uiText.about}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Input Card */}
+      {/* Input Section */}
       <View style={styles.inputCard}>
-        <View style={styles.sectionContainer}>
-          <Text style={styles.cardLabel}>{uiText.incidentDescription}</Text>
-          <TextInput
-            style={styles.textArea}
-            placeholder={uiText.incidentPlaceholder}
-            multiline
-            numberOfLines={5}
-            value={description}
-            onChangeText={setDescription}
-            placeholderTextColor="#94a3b8"
-          />
-        </View>
-
-        <View style={styles.divider} />
-
-        <View style={styles.sectionContainer}>
-          <Text style={styles.cardLabel}>{uiText.language}</Text>
-          <View style={styles.languageRow}>
-            <TouchableOpacity
-              style={[
-                styles.languageButton,
-                styles.languageButtonFirst,
-                language === "en" && styles.activeLanguageButton,
-              ]}
-              onPress={() => setLanguage("en")}
-            >
-              <Text
-                style={[
-                  styles.languageButtonText,
-                  language === "en" && styles.activeLanguageButtonText,
-                ]}
-              >
-                {uiText.english}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.languageButton,
-                language === "si" && styles.activeLanguageButton,
-              ]}
-              onPress={() => setLanguage("si")}
-            >
-              <Text
-                style={[
-                  styles.languageButtonText,
-                  language === "si" && styles.activeLanguageButtonText,
-                ]}
-              >
-                {uiText.sinhala}
-              </Text>
-            </TouchableOpacity>
+        <View style={styles.inputHeader}>
+          <View style={styles.inputIconContainer}>
+            <Ionicons name="chatbox-ellipses" size={24} color="#2563eb" />
+          </View>
+          <View>
+            <Text style={styles.inputTitle}>{uiText.describeTitle}</Text>
+            <Text style={styles.inputSubtitle}>{uiText.describeSubtitle}</Text>
           </View>
         </View>
-
-        <View style={styles.actionRow}>
-          <TouchableOpacity style={[styles.submitButton, styles.actionButtonFirst]} onPress={handleSubmit}>
-            <Text style={styles.submitButtonText}>{uiText.submit}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.clearButton} onPress={handleClear}>
-            <Text style={styles.clearButtonText}>{uiText.clear}</Text>
-          </TouchableOpacity>
+        <TextInput
+          style={[styles.textArea, validationError ? styles.textAreaError : null]}
+          placeholder={uiText.placeholder}
+          placeholderTextColor="#94a3b8"
+          multiline
+          value={description}
+          onChangeText={(text) => {
+            setDescription(text);
+            if (validationError) setValidationError("");
+          }}
+        />
+        {validationError ? (
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle" size={16} color="#ef4444" />
+            <Text style={styles.errorTextUnderInput}>{validationError}</Text>
+          </View>
+        ) : null}
+        <View style={styles.inputFooter}>
+          <View style={styles.privacyNotice}>
+            <Ionicons name="lock-closed-outline" size={14} color="#94a3b8" />
+            <Text style={styles.privacyNoticeText}>{uiText.privacyNotice}</Text>
+          </View>
+          <View style={styles.inputActions}>
+            <TouchableOpacity style={styles.clearBtn} onPress={handleClear}>
+              <Ionicons name="refresh-outline" size={18} color="#64748b" />
+              <Text style={styles.clearBtnText}>{uiText.clear}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} disabled={loading}>
+              {loading ? <ActivityIndicator color="#fff" size="small" /> : (
+                <>
+                  <Ionicons name="send" size={18} color="#fff" />
+                  <Text style={styles.submitBtnText}>{uiText.submit}</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
-      {/* Loading Indicator */}
-      {loading && (
-        <View style={styles.loadingCard}>
-          <ActivityIndicator size="large" color="#2563eb" />
-          <Text style={styles.loadingText}>{uiText.loading}</Text>
-        </View>
-      )}
-
-      {/* Error Message */}
-      {error && (
-        <View style={styles.errorCard}>
-          <Text style={styles.errorText}>⚠ {error}</Text>
-        </View>
-      )}
-
-      {/* Result Section */}
+      {/* Summary Stats */}
       {result && (
-        <>
-          {/* Summary Cards */}
-          <View style={styles.summaryContainer}>
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>{uiText.detectedLanguage}</Text>
-              <Text style={styles.summaryValue}>{result.detected_language}</Text>
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <View style={styles.statIconContainer}>
+              <Ionicons name="globe-outline" size={24} color="#2563eb" />
             </View>
-
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>{uiText.abuseCategory}</Text>
-              <Text style={styles.summaryValue}>{result.abuse_category}</Text>
+            <View>
+              <Text style={styles.statLabel}>{uiText.detectedLanguage}</Text>
+              <Text style={styles.statValue}>{result.detected_language || 'English'}</Text>
             </View>
-
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>{uiText.relevantLaws}</Text>
-              <Text style={styles.summaryValue}>{result.relevant_laws?.length || 0}</Text>
-              <Text style={styles.summarySubtext}>{uiText.lawsFound}</Text>
+            <View style={styles.detectedBadge}>
+              <Ionicons name="checkmark" size={12} color="#059669" />
+              <Text style={styles.detectedBadgeText}>{uiText.detected}</Text>
             </View>
           </View>
 
-          {/* Relevant Laws Section */}
-          {result.relevant_laws && result.relevant_laws.length > 0 && (
-            <View style={styles.lawsSection}>
-              <Text style={styles.sectionTitle}>{uiText.relevantLaws}</Text>
-              {result.relevant_laws.map((law: any, index: number) => (
-                <View key={index} style={styles.lawCardPremium}>
-                  <View style={styles.lawHeader}>
-                    <View style={styles.lawBadge}>
-                      <Text style={styles.lawBadgeText}>{index + 1}</Text>
-                    </View>
-                    <View style={styles.lawHeaderText}>
-                              <Text style={styles.lawSection}>{uiText.section}: {law.section}</Text>
-                      <Text style={styles.lawTitle} numberOfLines={2}>{law.title}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.lawContent}>
-                    <View style={styles.lawContentItem}>
-                      <Text style={styles.lawContentLabel}>{uiText.simpleExplanation}</Text>
-                      <Text style={styles.lawContentText}>{law.simple_explanation}</Text>
-                    </View>
-
-                    <View style={styles.lawContentItem}>
-                      <Text style={styles.lawContentLabel}>{uiText.reportingGuidance}</Text>
-                      <Text style={styles.lawContentText}>{law.reporting_guidance}</Text>
-                    </View>
-                  </View>
-                </View>
-              ))}
+          <View style={styles.statCard}>
+            <View style={[styles.statIconContainer, { backgroundColor: '#f5f3ff' }]}>
+              <MaterialCommunityIcons name="scale-balance" size={24} color="#7c3aed" />
             </View>
-          )}
+            <View>
+              <Text style={styles.statLabel}>{uiText.abuseCategory}</Text>
+              <Text style={styles.statValue}>{result.abuse_category || 'General Abuse'}</Text>
+            </View>
+            <TouchableOpacity>
+              <Ionicons name="information-circle-outline" size={20} color="#94a3b8" />
+            </TouchableOpacity>
+          </View>
 
-          {/* Decision Roadmap Section */}
-          {result.decision_roadmap && result.decision_roadmap.length > 0 && (
-            <View style={styles.roadmapSectionContainer}>
-              <View style={styles.roadmapTitleContainer}>
-                <View style={styles.roadmapTitleIcon}>
-                  <Text style={styles.roadmapTitleIconText}>🗺️</Text>
-                </View>
-                <Text style={styles.roadmapSectionTitle}>{uiText.decisionRoadmap}</Text>
+          <View style={styles.statCard}>
+            <View style={[styles.statIconContainer, { backgroundColor: '#f0fdf4' }]}>
+              <Ionicons name="book-outline" size={24} color="#10b981" />
+            </View>
+            <View>
+              <Text style={styles.statLabel}>{uiText.relevantLawsFound}</Text>
+              <View style={styles.statValueRow}>
+                <Text style={styles.statValueLarge}>{result.relevant_laws?.length || 0}</Text>
+                <Text style={styles.statValueSubText}>{uiText.sections}</Text>
               </View>
-              <Text style={styles.roadmapSubtitle}>{uiText.followSteps}</Text>
-              <View style={styles.roadmapSection}>
-                {parseRoadmapSteps(result.decision_roadmap).map((step: { number: string; title: string; description: string }, index) => (
-                  <View key={index} style={styles.roadmapStep}>
-                    <View style={styles.stepNumber}>
-                      <Text style={styles.stepNumberText}>{index + 1}</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {/* Main Content Grid */}
+      {result && (
+        <View style={[styles.mainGrid, isDesktop ? styles.row : styles.column]}>
+          {/* Left Column: Relevant Laws */}
+          <View style={[styles.gridColumn, isDesktop && { flex: 1.2 }]}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionHeaderIcon}>
+                <Ionicons name="bookmarks" size={20} color="#2563eb" />
+              </View>
+              <View>
+                <Text style={styles.sectionTitle}>{uiText.relevantLawsTitle}</Text>
+                <Text style={styles.sectionSubtitle}>{uiText.relevantLawsSubtitle}</Text>
+              </View>
+            </View>
+
+            {result.relevant_laws?.map((law: any, idx: number) => (
+              <View key={idx} style={styles.lawCard}>
+                <View style={styles.lawCardHeader}>
+                  <View style={styles.lawBadge}>
+                    <Text style={styles.lawBadgeText}>{idx + 1}</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.lawSectionText}>Section {law.section}</Text>
+                    <Text style={styles.lawTitleText}>{law.title}</Text>
+                  </View>
+                </View>
+                <View style={styles.lawContent}>
+                  <Text style={styles.lawLabel}>{uiText.whatItMeans}</Text>
+                  <Text style={styles.lawDescription}>{law.simple_explanation}</Text>
+                  
+                  <View style={styles.guidanceBox}>
+                    <Ionicons name="checkmark-circle" size={18} color="#2563eb" />
+                    <Text style={styles.guidanceText}>
+                      <Text style={styles.guidanceLabel}>{uiText.reportingGuidance} </Text>
+                      {law.reporting_guidance}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ))}
+
+            <View style={styles.disclaimerBox}>
+              <Ionicons name="information-circle" size={20} color="#3b82f6" />
+              <Text style={styles.disclaimerText}>{uiText.legalDisclaimer}</Text>
+            </View>
+          </View>
+
+          {/* Right Column: Roadmap */}
+          <View style={[styles.gridColumn, isDesktop && { flex: 0.8, marginLeft: 24 }]}>
+            <View style={styles.roadmapCard}>
+              <View style={styles.sectionHeader}>
+                <View style={[styles.sectionHeaderIcon, { backgroundColor: '#eff6ff' }]}>
+                  <Ionicons name="map-outline" size={20} color="#2563eb" />
+                </View>
+                <View>
+                  <Text style={styles.sectionTitle}>{uiText.decisionRoadmap}</Text>
+                  <Text style={styles.sectionSubtitle}>{uiText.roadmapSubtitle}</Text>
+                </View>
+              </View>
+
+              <View style={styles.roadmapTimeline}>
+                {parseRoadmapSteps(result.decision_roadmap).map((step: any, idx: number) => (
+                  <View key={idx} style={styles.roadmapItem}>
+                    <View style={styles.roadmapLeft}>
+                      <View style={styles.stepCircle}>
+                        <Text style={styles.stepCircleText}>{idx + 1}</Text>
+                      </View>
+                      {idx < 4 && <View style={styles.timelineConnector} />}
                     </View>
-                    <View style={styles.stepContent}>
-                      {step.title && <Text style={styles.stepTitle}>{step.title}</Text>}
-                      <Text style={styles.stepDescription}>{step.description}</Text>
+                    <View style={styles.roadmapContent}>
+                      <View style={styles.roadmapIconBox}>
+                        <RoadmapStepIcon index={idx} />
+                      </View>
+                      <View style={styles.roadmapTextBox}>
+                        <Text style={styles.roadmapStepTitle}>{step.title}</Text>
+                        <Text style={styles.roadmapStepDesc}>{step.description}</Text>
+                      </View>
                     </View>
                   </View>
                 ))}
               </View>
-            </View>
-          )}
 
-          {/* Emergency Contacts Section */}
-          <View style={styles.emergencySection}>
-            <View style={styles.emergencyHeader}>
-              <Text style={styles.emergencyTitle}>🚨 {uiText.emergencyContacts}</Text>
-            </View>
-            <View style={styles.emergencyContent}>
-              <View style={styles.emergencyContact}>
-                <Text style={styles.emergencyContactLabel}>{uiText.ncpaLabel}</Text>
-                <Text style={styles.emergencyContactNumber}>1929</Text>
-              </View>
-              <View style={styles.emergencyContact}>
-                <Text style={styles.emergencyContactLabel}>{uiText.policeLabel}</Text>
-                <Text style={styles.emergencyContactNumber}>119</Text>
+              <View style={styles.roadmapFooter}>
+                <View style={styles.roadmapFooterIcon}>
+                  <Ionicons name="heart-half-outline" size={24} color="#2563eb" />
+                </View>
+                <Text style={styles.roadmapFooterText}>Your action can create a safer future for a child.</Text>
               </View>
             </View>
           </View>
-        </>
+        </View>
       )}
+
+      {/* Footer / Contacts */}
+      <View style={[styles.footerRow, isDesktop ? styles.row : styles.column]}>
+        <View style={styles.contactsSection}>
+          <View style={styles.contactsHeader}>
+            <Ionicons name="call" size={20} color="#2563eb" />
+            <Text style={styles.contactsTitle}>{uiText.importantContacts}</Text>
+          </View>
+          <Text style={styles.contactsSubtitle}>{uiText.reachOut}</Text>
+          
+          <View style={styles.contactCardsRow}>
+            <View style={styles.contactCard}>
+              <View style={styles.contactIconCircle}>
+                <Ionicons name="headset" size={24} color="#2563eb" />
+              </View>
+              <View>
+                <Text style={styles.contactNumber}>1929</Text>
+                <Text style={styles.contactName}>{uiText.ncpa}</Text>
+                <Text style={styles.contactSub}>{uiText.ncpaSub}</Text>
+              </View>
+            </View>
+
+            <View style={styles.contactCard}>
+              <View style={[styles.contactIconCircle, { backgroundColor: '#ecfdf5' }]}>
+                <Ionicons name="shield-checkmark" size={24} color="#10b981" />
+              </View>
+              <View>
+                <Text style={styles.contactNumber}>119</Text>
+                <Text style={styles.contactName}>{uiText.police}</Text>
+                <Text style={styles.contactSub}>{uiText.policeSub}</Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.privacyMattersCard}>
+          <View style={styles.privacyTop}>
+            <View style={styles.lockCircle}>
+              <Ionicons name="lock-closed" size={24} color="#1e293b" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.privacyTitle}>{uiText.privacyMatters}</Text>
+              <Text style={styles.privacyDesc}>{uiText.privacyDetails}</Text>
+              <Text style={styles.dangerText}>{uiText.immediateDanger}</Text>
+            </View>
+            <View style={styles.heartIcon}>
+              <FontAwesome5 name="hands-helping" size={24} color="#f87171" />
+            </View>
+          </View>
+        </View>
+      </View>
+
+      {/* Bottom Copyright */}
+      <View style={styles.bottomFooter}>
+        <Text style={styles.copyrightText}>© 2026 Child Abuse Legal Guidance Project</Text>
+        <View style={styles.footerDot} />
+        <Text style={styles.copyrightText}>Built for research & social impact</Text>
+        <View style={styles.footerDot} />
+        <Text style={styles.copyrightText}>Not an official government site</Text>
+      </View>
     </ScrollView>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
-    padding: 20,
-    backgroundColor: "#f0f4f8",
+    flex: 1,
+    backgroundColor: "#ffffff",
   },
-  heroSection: {
-    marginBottom: 28,
-    marginTop: 12,
+  contentContainer: {
+    padding: 24,
+    maxWidth: 1400,
+    alignSelf: 'center',
+    width: '100%',
   },
-  mainTitle: {
-    fontSize: 32,
-    fontWeight: "800",
-    textAlign: "center",
-    color: "#1e3a8a",
-    marginBottom: 12,
+  row: { flexDirection: 'row' },
+  column: { flexDirection: 'column' },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 32,
+    flexWrap: 'wrap',
+    gap: 16,
   },
-  subtitle: {
-    fontSize: 16,
-    color: "#475569",
-    textAlign: "center",
-    lineHeight: 24,
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  logoContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#eff6ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#1e3a8a',
+    letterSpacing: -0.5,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  languageSwitcher: {
+    flexDirection: 'row',
+    backgroundColor: '#f1f5f9',
+    padding: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  langBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  langBtnActive: {
+    backgroundColor: '#2563eb',
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  langBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  langBtnTextActive: {
+    color: '#fff',
+  },
+  aboutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  aboutBtnText: {
+    fontSize: 14,
+    color: '#64748b',
+    fontWeight: '600',
   },
   inputCard: {
-    backgroundColor: "#ffffff",
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 24,
     borderWidth: 1,
-    borderColor: "#e0e7ff",
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 12,
+    elevation: 2,
+    marginBottom: 32,
   },
-  sectionContainer: {
-    marginBottom: 16,
+  inputHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 20,
   },
-  cardLabel: {
+  inputIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#eff6ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  inputTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  inputSubtitle: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#1e293b",
-    marginBottom: 10,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+    color: '#64748b',
   },
   textArea: {
-    borderWidth: 1,
-    borderColor: "#cbd5e1",
+    backgroundColor: '#f8fafc',
     borderRadius: 12,
-    padding: 14,
-    backgroundColor: "#f8fafc",
-    textAlignVertical: "top",
+    padding: 16,
     minHeight: 120,
-    fontSize: 15,
-    color: "#1e293b",
+    fontSize: 16,
+    color: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    textAlignVertical: 'top',
+    marginBottom: 8,
   },
-  divider: {
-    height: 1,
-    backgroundColor: "#e2e8f0",
-    marginVertical: 16,
+  textAreaError: {
+    borderColor: '#fecaca',
+    backgroundColor: '#fffcfc',
   },
-  languageRow: {
-    flexDirection: "row",
-    marginBottom: 2,
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 16,
+    paddingHorizontal: 4,
   },
-  languageButton: {
-    flex: 1,
-    paddingVertical: 12,
+  errorTextUnderInput: {
+    color: '#ef4444',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  inputFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  privacyNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  privacyNoticeText: {
+    fontSize: 13,
+    color: '#94a3b8',
+  },
+  inputActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  clearBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: 10,
-    borderWidth: 2,
-    borderColor: "#cbd5e1",
-    backgroundColor: "#f8fafc",
-    alignItems: "center",
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
-  languageButtonFirst: {
-    marginRight: 10,
+  clearBtnText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#64748b',
   },
-  activeLanguageButton: {
-    backgroundColor: "#2563eb",
-    borderColor: "#2563eb",
-  },
-  languageButtonText: {
-    color: "#475569",
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  activeLanguageButtonText: {
-    color: "#ffffff",
-  },
-  actionRow: {
-    flexDirection: "row",
-    marginTop: 18,
-  },
-  actionButtonFirst: {
-    marginRight: 10,
-  },
-  submitButton: {
-    flex: 1,
-    backgroundColor: "#2563eb",
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    shadowColor: "#2563eb",
+  submitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#2563eb',
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 10,
+    shadowColor: '#2563eb',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 5,
+    elevation: 4,
   },
-  submitButtonText: {
-    color: "#ffffff",
+  submitBtnText: {
     fontSize: 15,
-    fontWeight: "700",
+    fontWeight: '700',
+    color: '#fff',
   },
-  clearButton: {
+  statsRow: {
+    flexDirection: 'row',
+    gap: 20,
+    marginBottom: 32,
+    flexWrap: 'wrap',
+  },
+  statCard: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: "#cbd5e1",
-    backgroundColor: "#ffffff",
-    alignItems: "center",
-  },
-  clearButtonText: {
-    color: "#475569",
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  loadingCard: {
-    backgroundColor: "#ffffff",
+    minWidth: 280,
+    backgroundColor: '#fff',
     borderRadius: 16,
-    padding: 32,
-    marginBottom: 24,
-    alignItems: "center",
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
     borderWidth: 1,
-    borderColor: "#e0e7ff",
+    borderColor: '#e2e8f0',
+    position: 'relative',
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 15,
-    color: "#475569",
-    fontWeight: "500",
-  },
-  errorCard: {
-    backgroundColor: "#fee2e2",
+  statIconContainer: {
+    width: 48,
+    height: 48,
     borderRadius: 12,
-    padding: 14,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#fecaca",
+    backgroundColor: '#eff6ff',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  errorText: {
-    color: "#dc2626",
+  statLabel: {
+    fontSize: 13,
+    color: '#64748b',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1e3a8a',
+  },
+  statValueRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 4,
+  },
+  statValueLarge: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#1e3a8a',
+  },
+  statValueSubText: {
     fontSize: 14,
-    fontWeight: "600",
+    color: '#64748b',
+    fontWeight: '500',
   },
-  summaryContainer: {
-    flexDirection: "row",
-    marginBottom: 24,
-    gap: 12,
+  detectedBadge: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#dcfce7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#e0e7ff",
-    alignItems: "center",
-  },
-  summaryLabel: {
-    fontSize: 12,
-    color: "#64748b",
-    fontWeight: "600",
-    textTransform: "uppercase",
-    marginBottom: 6,
-  },
-  summaryValue: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1e3a8a",
-  },
-  summarySubtext: {
+  detectedBadgeText: {
     fontSize: 11,
-    color: "#94a3b8",
-    marginTop: 4,
+    fontWeight: '700',
+    color: '#059669',
   },
-  lawsSection: {
-    marginBottom: 24,
+  mainGrid: {
+    gap: 24,
+    marginBottom: 40,
+  },
+  gridColumn: {
+    flex: 1,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 20,
+  },
+  sectionHeaderIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#eff6ff',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: "700",
-    color: "#1e3a8a",
-    marginBottom: 14,
+    fontWeight: '800',
+    color: '#1e3a8a',
   },
-  lawCardPremium: {
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
+  sectionSubtitle: {
+    fontSize: 13,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  lawCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#e0e7ff",
+    borderColor: '#eff6ff',
+    marginBottom: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 8,
+    elevation: 1,
   },
-  lawHeader: {
-    flexDirection: "row",
-    marginBottom: 12,
-    alignItems: "flex-start",
+  lawCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    padding: 16,
+    backgroundColor: '#f8fafc',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
   },
   lawBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#2563eb',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  lawBadgeText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  lawSectionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2563eb',
+    textTransform: 'uppercase',
+  },
+  lawTitleText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1e293b',
+  },
+  lawContent: {
+    padding: 16,
+  },
+  lawLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#64748b',
+    marginBottom: 8,
+  },
+  lawDescription: {
+    fontSize: 14,
+    color: '#475569',
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  guidanceBox: {
+    flexDirection: 'row',
+    gap: 10,
+    backgroundColor: '#eff6ff',
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+  },
+  guidanceText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#1e40af',
+    lineHeight: 20,
+  },
+  guidanceLabel: {
+    fontWeight: '800',
+  },
+  disclaimerBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#f8fafc',
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    marginTop: 8,
+  },
+  disclaimerText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#64748b',
+    fontStyle: 'italic',
+  },
+  roadmapCard: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.05,
+    shadowRadius: 20,
+    elevation: 4,
+  },
+  roadmapTimeline: {
+    marginTop: 10,
+    paddingLeft: 4,
+  },
+  roadmapItem: {
+    flexDirection: 'row',
+    marginBottom: 24,
+  },
+  roadmapLeft: {
+    alignItems: 'center',
+    width: 24,
+    marginRight: 16,
+  },
+  stepCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#2563eb',
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  stepCircleText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#2563eb',
+  },
+  timelineConnector: {
+    width: 2,
+    flex: 1,
+    backgroundColor: '#e2e8f0',
+    marginVertical: 4,
+  },
+  roadmapContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+    backgroundColor: '#fff',
+  },
+  roadmapIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#f8fafc',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  roadmapTextBox: {
+    flex: 1,
+  },
+  roadmapStepTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1e3a8a',
+    marginBottom: 2,
+  },
+  roadmapStepDesc: {
+    fontSize: 13,
+    color: '#64748b',
+    lineHeight: 18,
+  },
+  roadmapFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 8,
+    padding: 16,
+    backgroundColor: '#eff6ff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
+  },
+  roadmapFooterIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#2563eb",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  lawBadgeText: {
-    color: "#ffffff",
-    fontWeight: "700",
-    fontSize: 16,
+  roadmapFooterText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1e40af',
   },
-  lawHeaderText: {
+  footerRow: {
+    gap: 24,
+    marginBottom: 40,
+  },
+  contactsSection: {
     flex: 1,
   },
-  lawSection: {
-    fontSize: 12,
-    color: "#64748b",
-    fontWeight: "600",
-  },
-  lawTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#1e293b",
-    marginTop: 4,
-  },
-  lawContent: {
-    borderTopWidth: 1,
-    borderTopColor: "#f1f5f9",
-    paddingTop: 12,
-  },
-  lawContentItem: {
-    marginBottom: 12,
-  },
-  lawContentLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#2563eb",
+  contactsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 4,
   },
-  lawContentText: {
-    fontSize: 14,
-    color: "#475569",
-    lineHeight: 21,
-  },
-  roadmapSection: {
-    marginBottom: 24,
-    position: "relative",
-  },
-  roadmapSectionContainer: {
-    marginBottom: 24,
-  },
-  roadmapTitleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  roadmapTitleIcon: {
-    marginRight: 10,
-    fontSize: 24,
-  },
-  roadmapTitleIconText: {
-    fontSize: 24,
-  },
-  roadmapSectionTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1e3a8a",
-    flex: 1,
-  },
-  roadmapSubtitle: {
-    fontSize: 14,
-    color: "#64748b",
-    marginBottom: 16,
-    fontWeight: "500",
-  },
-  roadmapStep: {
-    flexDirection: "row",
-    marginBottom: 20,
-    alignItems: "flex-start",
-    position: "relative",
-  },
-  stepNumber: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#2563eb",
-    borderWidth: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 16,
-    marginTop: 0,
-    shadowColor: "#2563eb",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-    zIndex: 10,
-    flexShrink: 0,
-  },
-  stepNumberText: {
-    color: "#ffffff",
-    fontWeight: "800",
+  contactsTitle: {
     fontSize: 18,
+    fontWeight: '800',
+    color: '#1e293b',
   },
-  stepContent: {
+  contactsSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
+    marginBottom: 20,
+  },
+  contactCardsRow: {
+    flexDirection: 'row',
+    gap: 16,
+    flexWrap: 'wrap',
+  },
+  contactCard: {
     flex: 1,
-    backgroundColor: "#ffffff",
-    borderRadius: 14,
+    minWidth: 240,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    backgroundColor: '#eff6ff',
     padding: 16,
-    borderWidth: 2,
-    borderColor: "#dbeafe",
-    marginTop: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#dbeafe',
   },
-  stepTitle: {
+  contactIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  contactNumber: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#1e3a8a',
+  },
+  contactName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1e3a8a',
+  },
+  contactSub: {
+    fontSize: 12,
+    color: '#64748b',
+  },
+  privacyMattersCard: {
+    flex: 1,
+    backgroundColor: '#fffcf0',
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#fef3c7',
+  },
+  privacyTop: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  lockCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  privacyTitle: {
     fontSize: 16,
-    fontWeight: "700",
-    color: "#1e3a8a",
+    fontWeight: '800',
+    color: '#1e293b',
+    marginBottom: 4,
+  },
+  privacyDesc: {
+    fontSize: 13,
+    color: '#475569',
+    lineHeight: 18,
     marginBottom: 8,
   },
-  stepDescription: {
-    fontSize: 14,
-    color: "#475569",
-    lineHeight: 22,
-    fontWeight: "500",
+  dangerText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#b45309',
   },
-  emergencySection: {
-    backgroundColor: "#fef08a",
-    borderRadius: 14,
-    overflow: "hidden",
-    marginBottom: 24,
-    borderWidth: 2,
-    borderColor: "#fcd34d",
+  heartIcon: {
+    alignSelf: 'flex-end',
   },
-  emergencyHeader: {
-    backgroundColor: "#f59e0b",
-    padding: 14,
+  bottomFooter: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  emergencyTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#ffffff",
-  },
-  emergencyContent: {
-    flexDirection: "row",
-    padding: 14,
-    justifyContent: "space-around",
-  },
-  emergencyContact: {
-    alignItems: "center",
-  },
-  emergencyContactLabel: {
+  copyrightText: {
     fontSize: 12,
-    color: "#92400e",
-    fontWeight: "600",
-    marginBottom: 4,
+    color: '#94a3b8',
+    fontWeight: '500',
   },
-  emergencyContactNumber: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#b45309",
-  },
+  footerDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#e2e8f0',
+    marginHorizontal: 8,
+  }
 })
+
