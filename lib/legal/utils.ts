@@ -13,7 +13,9 @@ export interface RoadmapStep {
  * Expects format: "1. Title: Description"
  */
 export function parseRoadmapSteps(roadmap: string[]): RoadmapStep[] {
-  return roadmap.map((step) => {
+  if (!roadmap) return [];
+  return roadmap.map((step, index) => {
+    // Try to match "1. Title: Description"
     const match = step.match(/^(\d+)\.\s*(.+):\s*(.+)$/);
     if (match) {
       return {
@@ -22,8 +24,20 @@ export function parseRoadmapSteps(roadmap: string[]): RoadmapStep[] {
         description: match[3],
       };
     }
+    
+    // Try to match "Title: Description"
+    const colonMatch = step.match(/^(.+):\s*(.+)$/);
+    if (colonMatch) {
+      return {
+        number: (index + 1).toString(),
+        title: colonMatch[1],
+        description: colonMatch[2],
+      };
+    }
+
+    // Default: use the whole string as description
     return {
-      number: "",
+      number: (index + 1).toString(),
       title: "",
       description: step,
     };

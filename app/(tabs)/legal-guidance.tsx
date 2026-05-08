@@ -60,6 +60,19 @@ export default function LegalGuidanceScreen() {
         detected: "හඳුනාගත්තා",
         laws: "නීති",
         validationError: "කරුණාකර අර්ථවත් අපයෝජනයට අදාළ සිද්ධි විස්තරයක් ඇතුළත් කරන්න.",
+        section: "වගන්තිය",
+        sections: "වගන්ති",
+        englishLang: "ඉංග්‍රීසි",
+        sinhalaLang: "සිංහල",
+        categories: {
+          "physical abuse": "ශාරීරික අපයෝජනය",
+          "sexual abuse": "ලිංගික අපයෝජනය",
+          "neglect": "නොසලකා හැරීම",
+          "trafficking": "ජාවාරම",
+          "digital abuse": "ඩිජිටල් අපයෝජනය",
+          "emotional abuse": "මානසික අපයෝජනය",
+          "general abuse": "සාමාන්‍ය අපයෝජනය"
+        }
       }
     : {
         title: "Child Abuse Legal Guidance",
@@ -96,6 +109,19 @@ export default function LegalGuidanceScreen() {
         detected: "Detected",
         laws: "Laws",
         validationError: "Please enter a meaningful abuse-related incident description.",
+        section: "section",
+        sections: "sections",
+        englishLang: "English",
+        sinhalaLang: "Sinhala",
+        categories: {
+          "physical abuse": "Physical Abuse",
+          "sexual abuse": "Sexual Abuse",
+          "neglect": "Neglect",
+          "trafficking": "Trafficking",
+          "digital abuse": "Digital Abuse",
+          "emotional abuse": "Emotional Abuse",
+          "general abuse": "General Abuse"
+        }
       }
 
   const handleClear = () => {
@@ -109,24 +135,16 @@ export default function LegalGuidanceScreen() {
     const trimmed = text.trim();
     if (!trimmed) return uiText.validationError;
     
-    // Length check
-    if (trimmed.length < 15) return uiText.validationError;
+    // Basic length check (user friendly)
+    if (trimmed.length < 5) return uiText.validationError;
 
-    // Pattern checks (gibberish)
-    const repeatedCharPattern = /(.)\1{4,}/; // e.g. aaaaa
+    // Gibberish: Repeated chars (e.g. "aaaaa")
+    const repeatedCharPattern = /(.)\1{5,}/;
     if (repeatedCharPattern.test(trimmed)) return uiText.validationError;
 
-    // Random keyboard patterns (common in asdf, qwerty etc)
-    const randomPattern = /[asdfghjkl]{5,}|[qwertyuiop]{5,}|[zxcvbnm]{5,}/i;
-    if (randomPattern.test(trimmed)) return uiText.validationError;
-
-    // Word count check - needs at least a few real words
-    const words = trimmed.split(/\s+/).filter(w => w.length >= 2);
-    if (words.length < 3) return uiText.validationError;
-
-    // Check if mostly special characters
-    const alphanumeric = trimmed.replace(/[^a-zA-Z0-9\u0D80-\u0DFF]/g, "");
-    if (alphanumeric.length < trimmed.length * 0.4) return uiText.validationError;
+    // Word count: at least 2 words for minimal context
+    const words = trimmed.split(/\s+/).filter(w => w.length >= 1);
+    if (words.length < 2) return uiText.validationError;
 
     return null;
   };
@@ -135,20 +153,25 @@ export default function LegalGuidanceScreen() {
     const vError = validateIncidentDescription(description);
     if (vError) {
       setValidationError(vError);
+      setResult(null); // Clear previous result on validation error
       return;
     }
 
     setLoading(true)
     setError("")
     setValidationError("")
+    setResult(null) // Clear previous result before new search
     try {
       const data = await queryLegalRAG({
         description,
         language: language as "en" | "si",
       })
+      // If we got results, clear any previous error
+      setError("")
       setResult(data)
     } catch (err: any) {
       setError(err.message || "Something went wrong")
+      setResult(null) // Clear results on error to avoid stale data
     } finally {
       setLoading(false)
     }
@@ -252,6 +275,17 @@ export default function LegalGuidanceScreen() {
         </View>
       </View>
 
+      {/* Error Message */}
+      {error ? (
+        <View style={styles.mainErrorCard}>
+          <Ionicons name="alert-circle" size={24} color="#ef4444" />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.mainErrorTitle}>Error</Text>
+            <Text style={styles.mainErrorText}>{error}</Text>
+          </View>
+        </View>
+      ) : null}
+
       {/* Summary Stats */}
       {result && (
         <View style={styles.statsRow}>
@@ -261,7 +295,11 @@ export default function LegalGuidanceScreen() {
             </View>
             <View>
               <Text style={styles.statLabel}>{uiText.detectedLanguage}</Text>
-              <Text style={styles.statValue}>{result.detected_language || 'English'}</Text>
+              <Text style={styles.statValue}>
+                {result.detected_language?.toLowerCase() === 'sinhala' ? uiText.sinhalaLang : 
+                 result.detected_language?.toLowerCase() === 'english' ? uiText.englishLang : 
+                 (result.detected_language || 'English')}
+              </Text>
             </View>
             <View style={styles.detectedBadge}>
               <Ionicons name="checkmark" size={12} color="#059669" />
@@ -275,7 +313,13 @@ export default function LegalGuidanceScreen() {
             </View>
             <View>
               <Text style={styles.statLabel}>{uiText.abuseCategory}</Text>
-              <Text style={styles.statValue}>{result.abuse_category || 'General Abuse'}</Text>
+              <Text style={styles.statValue}>
+                {language === 'si' && result.abuse_category_si ? result.abuse_category_si :
+                 language === 'en' && result.abuse_category_en ? result.abuse_category_en :
+                 ((uiText as any).categories?.[result.abuse_category?.toLowerCase()] || 
+                  result.abuse_category?.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || 
+                  (uiText as any).categories?.["general abuse"])}
+              </Text>
             </View>
             <TouchableOpacity>
               <Ionicons name="information-circle-outline" size={20} color="#94a3b8" />
@@ -290,7 +334,9 @@ export default function LegalGuidanceScreen() {
               <Text style={styles.statLabel}>{uiText.relevantLawsFound}</Text>
               <View style={styles.statValueRow}>
                 <Text style={styles.statValueLarge}>{result.relevant_laws?.length || 0}</Text>
-                <Text style={styles.statValueSubText}>{uiText.sections}</Text>
+                <Text style={styles.statValueSubText}>
+                  {result.relevant_laws?.length === 1 ? uiText.section : uiText.sections}
+                </Text>
               </View>
             </View>
           </View>
@@ -319,19 +365,29 @@ export default function LegalGuidanceScreen() {
                     <Text style={styles.lawBadgeText}>{idx + 1}</Text>
                   </View>
                   <View>
-                    <Text style={styles.lawSectionText}>Section {law.section}</Text>
-                    <Text style={styles.lawTitleText}>{law.title}</Text>
+                    <Text style={styles.lawSectionText}>{uiText.section} {law.section}</Text>
+                    <Text style={styles.lawTitleText}>
+                      {language === 'si' && law.title_si ? law.title_si :
+                       language === 'en' && law.title_en ? law.title_en :
+                       law.title}
+                    </Text>
                   </View>
                 </View>
                 <View style={styles.lawContent}>
                   <Text style={styles.lawLabel}>{uiText.whatItMeans}</Text>
-                  <Text style={styles.lawDescription}>{law.simple_explanation}</Text>
+                  <Text style={styles.lawDescription}>
+                    {language === 'si' && law.simple_explanation_si ? law.simple_explanation_si :
+                     language === 'en' && law.simple_explanation_en ? law.simple_explanation_en :
+                     law.simple_explanation}
+                  </Text>
                   
                   <View style={styles.guidanceBox}>
                     <Ionicons name="checkmark-circle" size={18} color="#2563eb" />
                     <Text style={styles.guidanceText}>
                       <Text style={styles.guidanceLabel}>{uiText.reportingGuidance} </Text>
-                      {law.reporting_guidance}
+                      {language === 'si' && law.reporting_guidance_si ? law.reporting_guidance_si :
+                       language === 'en' && law.reporting_guidance_en ? law.reporting_guidance_en :
+                       law.reporting_guidance}
                     </Text>
                   </View>
                 </View>
@@ -358,7 +414,9 @@ export default function LegalGuidanceScreen() {
               </View>
 
               <View style={styles.roadmapTimeline}>
-                {parseRoadmapSteps(result.decision_roadmap).map((step: any, idx: number) => (
+                {(language === 'si' && result.decision_roadmap_si ? parseRoadmapSteps(result.decision_roadmap_si) :
+                  language === 'en' && result.decision_roadmap_en ? parseRoadmapSteps(result.decision_roadmap_en) :
+                  parseRoadmapSteps(result.decision_roadmap)).map((step: any, idx: number) => (
                   <View key={idx} style={styles.roadmapItem}>
                     <View style={styles.roadmapLeft}>
                       <View style={styles.stepCircle}>
@@ -371,7 +429,7 @@ export default function LegalGuidanceScreen() {
                         <RoadmapStepIcon index={idx} />
                       </View>
                       <View style={styles.roadmapTextBox}>
-                        <Text style={styles.roadmapStepTitle}>{step.title}</Text>
+                        {step.title ? <Text style={styles.roadmapStepTitle}>{step.title}</Text> : null}
                         <Text style={styles.roadmapStepDesc}>{step.description}</Text>
                       </View>
                     </View>
@@ -1094,6 +1152,28 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: '#e2e8f0',
     marginHorizontal: 8,
+  },
+  mainErrorCard: {
+    flexDirection: 'row',
+    gap: 16,
+    backgroundColor: '#fef2f2',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    marginBottom: 32,
+    alignItems: 'center',
+  },
+  mainErrorTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#991b1b',
+    marginBottom: 2,
+  },
+  mainErrorText: {
+    fontSize: 14,
+    color: '#b91c1c',
+    lineHeight: 20,
   }
 })
 

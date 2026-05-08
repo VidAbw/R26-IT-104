@@ -27,8 +27,17 @@ export async function queryLegalRAG(payload: LegalQuery): Promise<LegalResult> {
 
     if (!response.ok) {
       const text = await response.text();
-      console.error("[Legal RAG] Error response:", text);
-      throw new Error(text || "Failed to fetch legal guidance");
+      let errorMessage = text;
+      try {
+        const errorJson = JSON.parse(text);
+        if (errorJson.detail) {
+          errorMessage = errorJson.detail;
+        }
+      } catch (e) {
+        // Not JSON, keep raw text
+      }
+      console.error("[Legal RAG] Error response:", errorMessage);
+      throw new Error(errorMessage || "Failed to fetch legal guidance");
     }
 
     const data = await response.json();
