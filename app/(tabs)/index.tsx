@@ -7,22 +7,30 @@ import {
   ScrollView,
   Alert,
   Platform,
+  TextInput,
+  Animated,
 } from "react-native";
 import { Audio } from "expo-av";
 import { supabase } from "../../lib/supabase";
 
-// API Base URL. In a physical device, 10.0.2.2 (Android Emulator) or localhost won't work to access your PC.
-// You will need to change this to your actual computer IP on the network (e.g. 192.168.1.100)
-const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || (Platform.OS === "web" ? "http://127.0.0.1:8000" : "http://10.0.2.2:8000");
+// Default Fallback IP
+const DEFAULT_API_URL = Platform.OS === "web" ? "http://127.0.0.1:8000" : "http://192.168.1.72:8000";
 
 type TabType = "status" | "register";
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<TabType>("status");
+  const [apiBaseUrl, setApiBaseUrl] = useState<string>(process.env.EXPO_PUBLIC_API_URL || DEFAULT_API_URL);
+  const [isEditingIp, setIsEditingIp] = useState(false);
+  const [tempIp, setTempIp] = useState(apiBaseUrl);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
+  };
+
+  const saveIp = () => {
+    setApiBaseUrl(tempIp);
+    setIsEditingIp(false);
   };
 
   return (
@@ -32,6 +40,29 @@ export default function Dashboard() {
         <TouchableOpacity onPress={handleLogout}>
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Dynamic IP Configuration */}
+      <View style={styles.networkConfig}>
+        <Text style={styles.networkLabel}>Backend Server IP:</Text>
+        {isEditingIp ? (
+          <View style={styles.ipEditRow}>
+            <TextInput 
+              style={styles.ipInput}
+              value={tempIp}
+              onChangeText={setTempIp}
+              autoCapitalize="none"
+              keyboardType="url"
+            />
+            <TouchableOpacity style={styles.btnSaveIp} onPress={saveIp}>
+              <Text style={styles.buttonTextSmall}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity onPress={() => setIsEditingIp(true)}>
+            <Text style={styles.ipValue}>{apiBaseUrl} ✎</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Custom Tab Switcher */}
@@ -72,32 +103,32 @@ export default function Dashboard() {
 
       {/* Content */}
       <View style={styles.contentContainer}>
-        {activeTab === "status" ? <StatusAndAlertsTab /> : <RegisterVoiceTab />}
+        {activeTab === "status" ? (
+          <StatusAndAlertsTab apiBaseUrl={apiBaseUrl} />
+        ) : (
+          <RegisterVoiceTab apiBaseUrl={apiBaseUrl} />
+        )}
       </View>
     </View>
   );
 }
 
 // --- TAB 1: Status & Alerts ---
-function StatusAndAlertsTab() {
+function StatusAndAlertsTab({ apiBaseUrl }: { apiBaseUrl: string }) {
   const [listenerStatus, setListenerStatus] = useState<string>("Unknown");
   const [alerts, setAlerts] = useState<any[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [prediction, setPrediction] = useState<string>("");
   const recordingRef = useRef<Audio.Recording | null>(null);
 
-  // Poll listener status
   useEffect(() => {
     fetchStatus();
     const interval = setInterval(fetchStatus, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [apiBaseUrl]);
 
-  // Fetch Supabase alerts
   useEffect(() => {
     fetchAlerts();
-
-    // Set up realtime listener for new alerts
     const subscription = supabase
       .channel("threat_alerts_changes")
       .on(
@@ -108,20 +139,16 @@ function StatusAndAlertsTab() {
           table: "audio_threat_alerts",
           filter: "sensor_type=eq.'acoustic'",
         },
-        () => {
-          fetchAlerts();
-        }
+        () => fetchAlerts()
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(subscription);
-    };
+    return () => { supabase.removeChannel(subscription); };
   }, []);
 
   const fetchStatus = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/audio/status`);
+      const response = await fetch(`${apiBaseUrl}/api/audio/status`);
       const data = await response.json();
       setListenerStatus(data.status || "Disconnected");
     } catch (error) {
@@ -137,14 +164,24 @@ function StatusAndAlertsTab() {
       .order("created_at", { ascending: false })
       .limit(10);
 
-    if (data && !error) {
-      setAlerts(data);
+    if (data && !error) setAlerts(data);
+  };
+
+  const clearAlerts = async () => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/audio/clear-alerts`, { method: "POST" });
+      if (response.ok) {
+        Alert.alert("Success", "Test data cleared!");
+        setAlerts([]); // Optimistically clear UI
+      }
+    } catch (e) {
+      Alert.alert("Error", "Failed to clear data.");
     }
   };
 
   const startGuardian = async () => {
     try {
-      await fetch(`${API_BASE_URL}/api/audio/start`, { method: "POST" });
+      await fetch(`${apiBaseUrl}/api/audio/start`, { method: "POST" });
       fetchStatus();
     } catch (e) {
       Alert.alert("Error", "Failed to start Guardian");
@@ -153,7 +190,7 @@ function StatusAndAlertsTab() {
 
   const stopGuardian = async () => {
     try {
-      await fetch(`${API_BASE_URL}/api/audio/stop`, { method: "POST" });
+      await fetch(`${apiBaseUrl}/api/audio/stop`, { method: "POST" });
       fetchStatus();
     } catch (e) {
       Alert.alert("Error", "Failed to stop Guardian");
@@ -167,14 +204,9 @@ function StatusAndAlertsTab() {
         try { await recordingRef.current.stopAndUnloadAsync(); } catch (e) {}
       }
       await Audio.requestPermissionsAsync();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
 
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
+      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
       recordingRef.current = recording;
       setIsRecording(true);
 
@@ -184,12 +216,9 @@ function StatusAndAlertsTab() {
         await recording.stopAndUnloadAsync();
         const uri = recording.getURI();
 
-        if (uri) {
-          uploadChunk(uri);
-        }
+        if (uri) uploadChunk(uri);
       }, 3000);
     } catch (err) {
-      console.error("Failed to start recording", err);
       setPrediction("Error recording");
     }
   };
@@ -202,14 +231,14 @@ function StatusAndAlertsTab() {
         name: "test_audio.wav",
         type: "audio/wav",
       } as any);
-      formData.append("device_info", "Parent's iPhone");
+      formData.append("device_info", "Web/App Dashboard (Test)");
 
-      const response = await fetch(`${API_BASE_URL}/api/audio/upload-chunk`, {
+      const response = await fetch(`${apiBaseUrl}/api/audio/upload-chunk`, {
         method: "POST",
         body: formData,
       });
       const data = await response.json();
-      setPrediction(`Prediction: ${data.status || "Success"}`);
+      setPrediction(`Prediction: ${data.status || "Success"}\nVolume: ${data.amplitude_db || 0} dB`);
     } catch (error) {
       setPrediction("Failed to upload test stream");
     }
@@ -217,44 +246,25 @@ function StatusAndAlertsTab() {
 
   return (
     <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-      {/* Listener Status Card */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Listener Status</Text>
-        <Text
-          style={[
-            styles.statusText,
-            listenerStatus === "Connected"
-              ? styles.statusGreen
-              : styles.statusRed,
-          ]}
-        >
+        <Text style={[styles.statusText, listenerStatus === "Connected" ? styles.statusGreen : styles.statusRed]}>
           {listenerStatus}
         </Text>
         <View style={styles.buttonRow}>
-          <TouchableOpacity
-            style={[styles.button, styles.btnStart]}
-            onPress={startGuardian}
-          >
+          <TouchableOpacity style={[styles.button, styles.btnStart]} onPress={startGuardian}>
             <Text style={styles.buttonText}>Start Guardian</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.button, styles.btnStop]}
-            onPress={stopGuardian}
-          >
+          <TouchableOpacity style={[styles.button, styles.btnStop]} onPress={stopGuardian}>
             <Text style={styles.buttonText}>Stop Guardian</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Test Mic Stream Card */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Test Mic Stream</Text>
         <TouchableOpacity
-          style={[
-            styles.button,
-            styles.btnTest,
-            isRecording && styles.btnDisabled,
-          ]}
+          style={[styles.button, styles.btnTest, isRecording && styles.btnDisabled]}
           onPress={testMicStream}
           disabled={isRecording}
         >
@@ -262,14 +272,17 @@ function StatusAndAlertsTab() {
             {isRecording ? "Recording..." : "Record 3s Test"}
           </Text>
         </TouchableOpacity>
-        {prediction ? (
-          <Text style={styles.predictionText}>{prediction}</Text>
-        ) : null}
+        {prediction ? <Text style={styles.predictionText}>{prediction}</Text> : null}
       </View>
 
-      {/* Alerts Log */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Alerts Log</Text>
+        <View style={styles.alertHeaderRow}>
+          <Text style={styles.cardTitle}>Alerts Log</Text>
+          <TouchableOpacity onPress={clearAlerts}>
+            <Text style={styles.clearText}>Clear Data</Text>
+          </TouchableOpacity>
+        </View>
+        
         {alerts.length === 0 ? (
           <Text style={styles.noDataText}>No acoustic alerts found.</Text>
         ) : (
@@ -279,14 +292,7 @@ function StatusAndAlertsTab() {
                 <Text style={styles.alertTime}>
                   {new Date(alert.created_at || alert.timestamp).toLocaleString()}
                 </Text>
-                <Text
-                  style={[
-                    styles.alertLevel,
-                    alert.threat_level === "High"
-                      ? styles.levelHigh
-                      : styles.levelModerate,
-                  ]}
-                >
+                <Text style={[styles.alertLevel, alert.threat_level === "High" ? styles.levelHigh : styles.levelModerate]}>
                   {alert.threat_level}
                 </Text>
               </View>
@@ -300,36 +306,76 @@ function StatusAndAlertsTab() {
   );
 }
 
-// --- TAB 2: Register Voice ---
-function RegisterVoiceTab() {
+// --- TAB 2: Register Voice (Guided Prompts) ---
+const PROMPT_WORDS = [
+  "Hello, my name is",
+  "I am setting up the Guardian system",
+  "Child Safety",
+  "Security Protocol",
+  "Authentication verified"
+];
+
+function RegisterVoiceTab({ apiBaseUrl }: { apiBaseUrl: string }) {
+  const [parentName, setParentName] = useState("Vidusha");
+  const [deviceType, setDeviceType] = useState("Phone Microphone");
   const [isRecording, setIsRecording] = useState(false);
   const [audioUri, setAudioUri] = useState<string | null>(null);
+  const [promptIndex, setPromptIndex] = useState(-1);
+  const [timeLeft, setTimeLeft] = useState(10);
+  
   const recordingRef = useRef<Audio.Recording | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const startRecording = async () => {
+  const startGuidedRecording = async () => {
+    if (!parentName.trim()) {
+      Alert.alert("Required", "Please enter your name first.");
+      return;
+    }
     try {
       if (recordingRef.current) {
         try { await recordingRef.current.stopAndUnloadAsync(); } catch (e) {}
       }
       await Audio.requestPermissionsAsync();
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      
+      const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
       recordingRef.current = recording;
+      
       setIsRecording(true);
       setAudioUri(null);
+      setPromptIndex(0);
+      setTimeLeft(10);
+
+      // Start the teleprompter timer
+      intervalRef.current = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            // Move to next prompt
+            setPromptIndex((currIndex) => {
+              if (currIndex >= PROMPT_WORDS.length - 1) {
+                // Done recording
+                clearInterval(intervalRef.current!);
+                finishRecording();
+                return currIndex;
+              }
+              return currIndex + 1;
+            });
+            return 10; // reset 10 seconds for next word
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
     } catch (err) {
       Alert.alert("Error", "Failed to start recording");
     }
   };
 
-  const stopRecording = async () => {
+  const finishRecording = async () => {
     try {
       setIsRecording(false);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      
       const recording = recordingRef.current;
       if (recording) {
         await recording.stopAndUnloadAsync();
@@ -350,18 +396,17 @@ function RegisterVoiceTab() {
         name: "parent_voice.wav",
         type: "audio/wav",
       } as any);
+      formData.append("parent_name", parentName);
 
-      const response = await fetch(
-        `${API_BASE_URL}/api/audio/register-parent`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
+      const response = await fetch(`${apiBaseUrl}/api/audio/register-parent`, {
+        method: "POST",
+        body: formData,
+      });
 
       if (response.ok) {
-        Alert.alert("Success", "Voice profile saved successfully!");
+        Alert.alert("Success", `Voice profile for ${parentName} saved successfully!`);
         setAudioUri(null);
+        setPromptIndex(-1);
       } else {
         Alert.alert("Error", "Failed to save profile on the server.");
       }
@@ -373,109 +418,140 @@ function RegisterVoiceTab() {
   return (
     <ScrollView style={styles.tabContent}>
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Register Parent Voice</Text>
+        <Text style={styles.cardTitle}>Dynamic Parent Identity</Text>
+        
+        <Text style={styles.inputLabel}>Parent Name</Text>
+        <TextInput
+          style={styles.textInput}
+          value={parentName}
+          onChangeText={setParentName}
+          placeholder="Enter your name (e.g. Vidusha)"
+        />
+
+        <Text style={styles.inputLabel}>Audio Source Device (Tag)</Text>
+        <View style={styles.deviceRow}>
+          <TouchableOpacity 
+            style={[styles.deviceBtn, deviceType === "Phone Microphone" && styles.deviceBtnActive]}
+            onPress={() => setDeviceType("Phone Microphone")}
+          >
+            <Text style={[styles.deviceBtnText, deviceType === "Phone Microphone" && styles.deviceBtnTextActive]}>Phone Mic</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.deviceBtn, deviceType === "Headset" && styles.deviceBtnActive]}
+            onPress={() => setDeviceType("Headset")}
+          >
+            <Text style={[styles.deviceBtnText, deviceType === "Headset" && styles.deviceBtnTextActive]}>Headset</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Guided Voice Registration</Text>
         <Text style={styles.instructions}>
-          Record 5-10 seconds of your normal speaking voice so the Guardian can
-          recognize you and avoid false alarms.
+          The AI needs a robust sample of your voice. Read the phrases on the screen as they appear.
         </Text>
 
-        {isRecording && (
-          <View style={styles.recordingIndicator}>
-            <View style={styles.pulsingCircle} />
-            <Text style={styles.recordingText}>Recording...</Text>
+        {isRecording && promptIndex >= 0 ? (
+          <View style={styles.teleprompterContainer}>
+            <Text style={styles.promptHelper}>Say the following phrase:</Text>
+            <Text style={styles.promptWord}>
+              {promptIndex === 0 && PROMPT_WORDS[0].includes("name is") 
+                  ? `${PROMPT_WORDS[0]} ${parentName}` 
+                  : PROMPT_WORDS[promptIndex]}
+            </Text>
+            <Text style={styles.timerText}>Next phrase in: {timeLeft}s</Text>
+            
+            <View style={styles.recordingIndicator}>
+              <View style={styles.pulsingCircle} />
+              <Text style={styles.recordingText}>Recording...</Text>
+            </View>
+            
+            <TouchableOpacity style={[styles.button, styles.btnStop, {marginTop: 20}]} onPress={finishRecording}>
+              <Text style={styles.buttonText}>Stop Early</Text>
+            </TouchableOpacity>
           </View>
-        )}
-
-        <View style={styles.buttonRow}>
-          {!isRecording ? (
-            <TouchableOpacity
-              style={[styles.button, styles.btnStart]}
-              onPress={startRecording}
-            >
-              <Text style={styles.buttonText}>Start Recording</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={[styles.button, styles.btnStop]}
-              onPress={stopRecording}
-            >
-              <Text style={styles.buttonText}>Stop Recording</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {audioUri && !isRecording && (
-          <View style={styles.submitSection}>
-            <Text style={styles.successText}>Recording captured!</Text>
-            <TouchableOpacity
-              style={[styles.button, styles.btnSubmit]}
-              onPress={submitProfile}
-            >
-              <Text style={styles.buttonText}>Submit Voice Profile</Text>
-            </TouchableOpacity>
+        ) : (
+          <View>
+            {!audioUri ? (
+              <TouchableOpacity style={[styles.button, styles.btnStart]} onPress={startGuidedRecording}>
+                <Text style={styles.buttonText}>Start Guided Registration</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.submitSection}>
+                <Text style={styles.successText}>Voice profile successfully recorded!</Text>
+                <TouchableOpacity style={[styles.button, styles.btnSubmit]} onPress={submitProfile}>
+                  <Text style={styles.buttonText}>Upload & Save Profile</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={{marginTop: 15}} onPress={() => setAudioUri(null)}>
+                  <Text style={{color: "#EF4444", fontWeight: "600"}}>Discard & Retake</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
         )}
       </View>
+      <View style={{ height: 40 }} />
     </ScrollView>
   );
 }
 
 // --- STYLES ---
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F3F4F6",
-  },
+  container: { flex: 1, backgroundColor: "#F3F4F6" },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingTop: 50, // adjust for safe area / status bar
+    paddingTop: 50,
     paddingBottom: 15,
     backgroundColor: "#FFF",
   },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#111827",
+  headerTitle: { fontSize: 22, fontWeight: "800", color: "#111827" },
+  logoutText: { color: "#EF4444", fontWeight: "600", fontSize: 16 },
+  networkConfig: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: "#F9FAFB",
+    borderBottomWidth: 1,
+    borderColor: "#E5E7EB",
   },
-  logoutText: {
-    color: "#EF4444",
-    fontWeight: "600",
-    fontSize: 16,
+  networkLabel: { fontSize: 13, color: "#6B7280", fontWeight: "600" },
+  ipValue: { fontSize: 13, color: "#3B82F6", fontWeight: "600" },
+  ipEditRow: { flexDirection: "row", alignItems: "center" },
+  ipInput: {
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    fontSize: 13,
+    minWidth: 150,
   },
+  btnSaveIp: {
+    backgroundColor: "#10B981",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  buttonTextSmall: { color: "#FFF", fontSize: 12, fontWeight: "bold" },
   tabContainer: {
     flexDirection: "row",
     backgroundColor: "#FFF",
     borderBottomWidth: 1,
     borderColor: "#E5E7EB",
   },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 15,
-    alignItems: "center",
-    borderBottomWidth: 3,
-    borderColor: "transparent",
-  },
-  activeTab: {
-    borderColor: "#3B82F6",
-  },
-  tabText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#6B7280",
-  },
-  activeTabText: {
-    color: "#3B82F6",
-  },
-  contentContainer: {
-    flex: 1,
-    padding: 15,
-  },
-  tabContent: {
-    flex: 1,
-  },
+  tabButton: { flex: 1, paddingVertical: 15, alignItems: "center", borderBottomWidth: 3, borderColor: "transparent" },
+  activeTab: { borderColor: "#3B82F6" },
+  tabText: { fontSize: 15, fontWeight: "600", color: "#6B7280" },
+  activeTabText: { color: "#3B82F6" },
+  contentContainer: { flex: 1, padding: 15 },
+  tabContent: { flex: 1 },
   card: {
     backgroundColor: "#FFF",
     borderRadius: 12,
@@ -487,129 +563,58 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 2,
   },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#1F2937",
-    marginBottom: 10,
-  },
-  statusText: {
-    fontSize: 16,
-    fontWeight: "600",
-    marginBottom: 15,
-  },
-  statusGreen: {
-    color: "#10B981",
-  },
-  statusRed: {
-    color: "#EF4444",
-  },
-  buttonRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  button: {
-    flex: 1,
-    paddingVertical: 12,
+  cardTitle: { fontSize: 18, fontWeight: "700", color: "#1F2937", marginBottom: 10 },
+  inputLabel: { fontSize: 14, fontWeight: "600", color: "#4B5563", marginBottom: 8, marginTop: 10 },
+  textInput: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
     borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  btnStart: {
-    backgroundColor: "#10B981",
-  },
-  btnStop: {
-    backgroundColor: "#EF4444",
-  },
-  btnTest: {
-    backgroundColor: "#3B82F6",
-  },
-  btnSubmit: {
-    backgroundColor: "#8B5CF6",
-  },
-  btnDisabled: {
-    backgroundColor: "#9CA3AF",
-  },
-  buttonText: {
-    color: "#FFF",
-    fontWeight: "600",
-    fontSize: 15,
-  },
-  predictionText: {
-    marginTop: 10,
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#4B5563",
-    textAlign: "center",
-  },
-  noDataText: {
-    color: "#6B7280",
-    fontStyle: "italic",
-    marginTop: 5,
-  },
-  alertItem: {
-    backgroundColor: "#F9FAFB",
     padding: 12,
+    fontSize: 16,
+    backgroundColor: "#F9FAFB",
+  },
+  deviceRow: { flexDirection: "row", gap: 10 },
+  deviceBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
     borderRadius: 8,
-    marginBottom: 10,
-    borderLeftWidth: 4,
-    borderColor: "#E5E7EB",
-  },
-  alertHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 5,
-  },
-  alertTime: {
-    fontSize: 14,
-    color: "#4B5563",
-  },
-  alertLevel: {
-    fontSize: 14,
-    fontWeight: "bold",
-  },
-  levelHigh: {
-    color: "#EF4444",
-  },
-  levelModerate: {
-    color: "#F59E0B",
-  },
-  alertDevice: {
-    fontSize: 13,
-    color: "#6B7280",
-  },
-  instructions: {
-    fontSize: 15,
-    color: "#4B5563",
-    lineHeight: 22,
-    marginBottom: 20,
-  },
-  recordingIndicator: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 20,
-  },
-  pulsingCircle: {
-    width: 15,
-    height: 15,
-    borderRadius: 7.5,
-    backgroundColor: "#EF4444",
-    marginRight: 10,
-  },
-  recordingText: {
-    fontSize: 16,
-    color: "#EF4444",
-    fontWeight: "600",
-  },
-  submitSection: {
-    marginTop: 20,
     alignItems: "center",
   },
-  successText: {
-    fontSize: 16,
-    color: "#10B981",
-    marginBottom: 10,
-    fontWeight: "600",
-  },
+  deviceBtnActive: { backgroundColor: "#EFF6FF", borderColor: "#3B82F6" },
+  deviceBtnText: { color: "#4B5563", fontWeight: "500" },
+  deviceBtnTextActive: { color: "#3B82F6", fontWeight: "700" },
+  statusText: { fontSize: 16, fontWeight: "600", marginBottom: 15 },
+  statusGreen: { color: "#10B981" },
+  statusRed: { color: "#EF4444" },
+  buttonRow: { flexDirection: "row", gap: 10 },
+  button: { flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  btnStart: { backgroundColor: "#10B981" },
+  btnStop: { backgroundColor: "#EF4444" },
+  btnTest: { backgroundColor: "#3B82F6" },
+  btnSubmit: { backgroundColor: "#8B5CF6", paddingHorizontal: 30 },
+  btnDisabled: { backgroundColor: "#9CA3AF" },
+  buttonText: { color: "#FFF", fontWeight: "600", fontSize: 15 },
+  predictionText: { marginTop: 10, fontSize: 15, fontWeight: "500", color: "#4B5563", textAlign: "center" },
+  alertHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
+  clearText: { color: "#EF4444", fontSize: 14, fontWeight: "600" },
+  noDataText: { color: "#6B7280", fontStyle: "italic", marginTop: 5 },
+  alertItem: { backgroundColor: "#F9FAFB", padding: 12, borderRadius: 8, marginBottom: 10, borderLeftWidth: 4, borderColor: "#E5E7EB" },
+  alertHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 5 },
+  alertTime: { fontSize: 14, color: "#4B5563" },
+  alertLevel: { fontSize: 14, fontWeight: "bold" },
+  levelHigh: { color: "#EF4444" },
+  levelModerate: { color: "#F59E0B" },
+  alertDevice: { fontSize: 13, color: "#6B7280" },
+  instructions: { fontSize: 15, color: "#4B5563", lineHeight: 22, marginBottom: 20 },
+  teleprompterContainer: { backgroundColor: "#1F2937", padding: 20, borderRadius: 12, alignItems: "center" },
+  promptHelper: { color: "#9CA3AF", fontSize: 14, marginBottom: 10 },
+  promptWord: { color: "#10B981", fontSize: 24, fontWeight: "bold", textAlign: "center", marginBottom: 20 },
+  timerText: { color: "#F59E0B", fontSize: 16, fontWeight: "600", marginBottom: 20 },
+  recordingIndicator: { flexDirection: "row", alignItems: "center", justifyContent: "center" },
+  pulsingCircle: { width: 15, height: 15, borderRadius: 7.5, backgroundColor: "#EF4444", marginRight: 10 },
+  recordingText: { fontSize: 16, color: "#EF4444", fontWeight: "600" },
+  submitSection: { marginTop: 10, alignItems: "center" },
+  successText: { fontSize: 16, color: "#10B981", marginBottom: 15, fontWeight: "600" },
 });
