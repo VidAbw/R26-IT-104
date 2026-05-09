@@ -9,14 +9,16 @@ import {
   Platform,
   TextInput,
   Animated,
+  Image as RNImage,
 } from "react-native";
+import { Image } from "expo-image";
 import { Audio } from "expo-av";
 import { supabase } from "../../lib/supabase";
 
 // Default Fallback IP
 const DEFAULT_API_URL = Platform.OS === "web" ? "http://127.0.0.1:8000" : "http://192.168.1.72:8000";
 
-type TabType = "status" | "register";
+type TabType = "status" | "register" | "nanny_cam";
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<TabType>("status");
@@ -99,15 +101,29 @@ export default function Dashboard() {
             Register Voice
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            activeTab === "nanny_cam" && styles.activeTab,
+          ]}
+          onPress={() => setActiveTab("nanny_cam")}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "nanny_cam" && styles.activeTabText,
+            ]}
+          >
+            Nanny Cam
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Content */}
       <View style={styles.contentContainer}>
-        {activeTab === "status" ? (
-          <StatusAndAlertsTab apiBaseUrl={apiBaseUrl} />
-        ) : (
-          <RegisterVoiceTab apiBaseUrl={apiBaseUrl} />
-        )}
+        {activeTab === "status" && <StatusAndAlertsTab apiBaseUrl={apiBaseUrl} />}
+        {activeTab === "register" && <RegisterVoiceTab apiBaseUrl={apiBaseUrl} />}
+        {activeTab === "nanny_cam" && <NannyCamTab apiBaseUrl={apiBaseUrl} />}
       </View>
     </View>
   );
@@ -515,6 +531,173 @@ function RegisterVoiceTab({ apiBaseUrl }: { apiBaseUrl: string }) {
   );
 }
 
+// --- TAB 3: Nanny Cam Guardian ---
+function NannyCamTab({ apiBaseUrl }: { apiBaseUrl: string }) {
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [cameraStatus, setCameraStatus] = useState<string>("Unknown");
+  const [streamUrl, setStreamUrl] = useState<string | null>(null);
+  const [frameTick, setFrameTick] = useState(Date.now());
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (cameraStatus === "Running") {
+      // Poll for a new frame every 150ms (approx 6-7 FPS)
+      interval = setInterval(() => {
+        setFrameTick(Date.now());
+      }, 150);
+    }
+    return () => clearInterval(interval);
+  }, [cameraStatus]);
+
+  useEffect(() => {
+    fetchAlerts();
+    const subscription = supabase
+      .channel("nanny_cam_alerts")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "alerts",
+        },
+        () => fetchAlerts()
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(subscription); };
+  }, []);
+
+  const fetchAlerts = async () => {
+    const { data, error } = await supabase
+      .from("alerts")
+      .select("*")
+      .order("timestamp", { ascending: false })
+      .limit(10);
+
+    if (data && !error) setAlerts(data);
+  };
+
+  const startCamera = async () => {
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/iot/start`, { method: "POST" });
+      if (res.ok) {
+        setCameraStatus("Running");
+        setStreamUrl(`${apiBaseUrl}/api/iot/stream`);
+      } else {
+        Alert.alert("Error", "Failed to start Nanny Cam");
+      }
+    } catch (e) {
+      Alert.alert("Error", "Network error starting Nanny Cam");
+    }
+  };
+
+  const stopCamera = async () => {
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/iot/stop`, { method: "POST" });
+      if (res.ok) {
+        setCameraStatus("Stopped");
+        setStreamUrl(null);
+      } else {
+        Alert.alert("Error", "Failed to stop Nanny Cam");
+      }
+    } catch (e) {
+      Alert.alert("Error", "Network error stopping Nanny Cam");
+    }
+  };
+
+  const triggerTestAlert = async () => {
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/iot/alert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "test-user-id",
+          source: "nanny_cam",
+          type: "hazard",
+          probability: 0.95,
+          timestamp: new Date().toISOString(),
+          details: { triggered_by: ["Test Alert"] }
+        }),
+      });
+      if (res.ok) {
+        Alert.alert("Success", "Test alert triggered!");
+      } else {
+        Alert.alert("Error", "Failed to trigger test alert");
+      }
+    } catch (e) {
+      Alert.alert("Error", "Network error triggering alert");
+    }
+  };
+
+  return (
+    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Nanny Cam Camera Control</Text>
+        <Text style={[styles.statusText, cameraStatus === "Running" ? styles.statusGreen : styles.statusRed]}>
+          Status: {cameraStatus}
+        </Text>
+        <View style={styles.buttonRow}>
+          <TouchableOpacity style={[styles.button, styles.btnStart]} onPress={startCamera}>
+            <Text style={styles.buttonText}>Start Camera</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.button, styles.btnStop]} onPress={stopCamera}>
+            <Text style={styles.buttonText}>Stop Camera</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Live Stream</Text>
+        {streamUrl ? (
+          <View style={styles.streamContainer}>
+            <Image 
+              source={{ uri: `${streamUrl}?t=${frameTick}` }} 
+              style={styles.streamImage} 
+              contentFit="cover"
+              cachePolicy="none"
+            />
+          </View>
+        ) : (
+          <View style={[styles.streamContainer, styles.streamOffline]}>
+            <Text style={styles.noDataText}>Camera is offline</Text>
+          </View>
+        )}
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.alertHeaderRow}>
+          <Text style={styles.cardTitle}>Recent Alerts</Text>
+          <TouchableOpacity style={styles.btnTestSmall} onPress={triggerTestAlert}>
+            <Text style={styles.buttonTextSmall}>Trigger Test Alert</Text>
+          </TouchableOpacity>
+        </View>
+        
+        {alerts.length === 0 ? (
+          <Text style={styles.noDataText}>No recent alerts found.</Text>
+        ) : (
+          alerts.map((alert) => (
+            <View key={alert.id || alert.timestamp} style={styles.alertItem}>
+              <View style={styles.alertHeader}>
+                <Text style={styles.alertTime}>
+                  {new Date(alert.timestamp).toLocaleString()}
+                </Text>
+                <Text style={[styles.alertLevel, styles.levelHigh]}>
+                  {(alert.probability * 100).toFixed(0)}% Probability
+                </Text>
+              </View>
+              <Text style={styles.alertDevice}>Type: {alert.type}</Text>
+              {alert.details?.triggered_by && (
+                <Text style={styles.alertDevice}>Details: {alert.details.triggered_by.join(", ")}</Text>
+              )}
+            </View>
+          ))
+        )}
+      </View>
+      <View style={{ height: 40 }} />
+    </ScrollView>
+  );
+}
+
 // --- STYLES ---
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F3F4F6" },
@@ -637,4 +820,8 @@ const styles = StyleSheet.create({
   recordingText: { fontSize: 16, color: "#EF4444", fontWeight: "600" },
   submitSection: { marginTop: 10, alignItems: "center" },
   successText: { fontSize: 16, color: "#10B981", marginBottom: 15, fontWeight: "600" },
+  streamContainer: { width: "100%", aspectRatio: 4/3, backgroundColor: "#000", borderRadius: 8, overflow: "hidden", justifyContent: "center", alignItems: "center", marginTop: 10 },
+  streamImage: { width: "100%", height: "100%" },
+  streamOffline: { backgroundColor: "#D1D5DB" },
+  btnTestSmall: { backgroundColor: "#3B82F6", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 4 },
 });
