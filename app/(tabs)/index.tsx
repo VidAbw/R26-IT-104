@@ -149,8 +149,12 @@ function StatusAndAlertsTab({ apiBaseUrl }: { apiBaseUrl: string }) {
   const fetchStatus = async () => {
     try {
       const response = await fetch(`${apiBaseUrl}/api/audio/status`);
-      const data = await response.json();
-      setListenerStatus(data.status || "Disconnected");
+      if (response.ok) {
+        // The backend is reachable. ESP32 sends data via POST, so "Online" is accurate.
+        setListenerStatus("Online (Ready for Audio)");
+      } else {
+        setListenerStatus("Error: Backend unreachable");
+      }
     } catch (error) {
       setListenerStatus("Disconnected");
     }
@@ -226,11 +230,17 @@ function StatusAndAlertsTab({ apiBaseUrl }: { apiBaseUrl: string }) {
   const uploadChunk = async (uri: string) => {
     try {
       const formData = new FormData();
-      formData.append("file", {
-        uri: Platform.OS === "android" ? uri : uri.replace("file://", ""),
-        name: "test_audio.wav",
-        type: "audio/wav",
-      } as any);
+      if (Platform.OS === "web") {
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        formData.append("file", blob, "test_audio.wav");
+      } else {
+        formData.append("file", {
+          uri: Platform.OS === "android" ? uri : uri.replace("file://", ""),
+          name: "test_audio.wav",
+          type: "audio/wav",
+        } as any);
+      }
       formData.append("device_info", "Web/App Dashboard (Test)");
 
       const response = await fetch(`${apiBaseUrl}/api/audio/upload-chunk`, {
@@ -391,11 +401,18 @@ function RegisterVoiceTab({ apiBaseUrl }: { apiBaseUrl: string }) {
     if (!audioUri) return;
     try {
       const formData = new FormData();
-      formData.append("file", {
-        uri: Platform.OS === "android" ? audioUri : audioUri.replace("file://", ""),
-        name: "parent_voice.wav",
-        type: "audio/wav",
-      } as any);
+      if (Platform.OS === "web") {
+        const response = await fetch(audioUri);
+        const blob = await response.blob();
+        const fileObj = new File([blob], "parent_voice.wav", { type: "audio/wav" });
+        formData.append("file", fileObj);
+      } else {
+        formData.append("file", {
+          uri: Platform.OS === "android" ? audioUri : audioUri.replace("file://", ""),
+          name: "parent_voice.wav",
+          type: "audio/wav",
+        } as any);
+      }
       formData.append("parent_name", parentName);
 
       const response = await fetch(`${apiBaseUrl}/api/audio/register-parent`, {
@@ -408,10 +425,13 @@ function RegisterVoiceTab({ apiBaseUrl }: { apiBaseUrl: string }) {
         setAudioUri(null);
         setPromptIndex(-1);
       } else {
-        Alert.alert("Error", "Failed to save profile on the server.");
+        const errText = await response.text();
+        console.error("Upload failed with status:", response.status, errText);
+        Alert.alert("Error", `Failed to save profile: ${errText}`);
       }
-    } catch (error) {
-      Alert.alert("Error", "An error occurred while uploading.");
+    } catch (error: any) {
+      console.error("Upload fetch error:", error);
+      Alert.alert("Error", `Upload exception: ${error.message}`);
     }
   };
 

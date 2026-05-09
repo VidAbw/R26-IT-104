@@ -12,12 +12,14 @@ const InitialLayout = () => {
   useEffect(() => {
     if (isLoading) return;
 
-    // If NOT logged in, kick them to Login Page
-    if (!session) {
+    const inAuthGroup = segments[0] === "login" || segments[0] === "register";
+
+    // If NOT logged in, and NOT on an auth screen, kick to login
+    if (!session && !inAuthGroup) {
       router.replace("/login");
     }
-    // If logged in, kick them to Home Page (index)
-    else if (session && segments[0] === "login") {
+    // If logged in, and ON an auth screen, kick to Home
+    else if (session && inAuthGroup) {
       router.replace("/");
     }
   }, [session, isLoading, router, segments]);
