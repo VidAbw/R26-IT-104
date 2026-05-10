@@ -249,7 +249,8 @@ function StatusAndAlertsTab({ apiBaseUrl }: { apiBaseUrl: string }) {
       if (Platform.OS === "web") {
         const response = await fetch(uri);
         const blob = await response.blob();
-        formData.append("file", blob, "test_audio.wav");
+        const fileObj = new File([blob], "test_audio.wav", { type: "audio/wav" });
+        formData.append("file", fileObj);
       } else {
         formData.append("file", {
           uri: Platform.OS === "android" ? uri : uri.replace("file://", ""),
