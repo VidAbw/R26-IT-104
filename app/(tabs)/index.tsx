@@ -132,15 +132,24 @@ export default function Dashboard() {
 // --- TAB 1: Status & Alerts ---
 function StatusAndAlertsTab({ apiBaseUrl }: { apiBaseUrl: string }) {
   const [listenerStatus, setListenerStatus] = useState<string>("Unknown");
+  const [profileCount, setProfileCount] = useState<number>(0);
+  const [parentName, setParentName] = useState<string>("");
   const [alerts, setAlerts] = useState<any[]>([]);
-  const [isRecording, setIsRecording] = useState(false);
   const [prediction, setPrediction] = useState<string>("");
   const recordingRef = useRef<Audio.Recording | null>(null);
 
   useEffect(() => {
     fetchStatus();
-    const interval = setInterval(fetchStatus, 5000);
-    return () => clearInterval(interval);
+    const statusInterval = setInterval(fetchStatus, 5000);
+
+    // Poll the last ESP32 result every 4 seconds
+    const resultInterval = setInterval(fetchLastResult, 4000);
+    fetchLastResult();
+
+    return () => {
+      clearInterval(statusInterval);
+      clearInterval(resultInterval);
+    };
   }, [apiBaseUrl]);
 
   useEffect(() => {
@@ -166,14 +175,33 @@ function StatusAndAlertsTab({ apiBaseUrl }: { apiBaseUrl: string }) {
     try {
       const response = await fetch(`${apiBaseUrl}/api/audio/status`);
       if (response.ok) {
-        // The backend is reachable. ESP32 sends data via POST, so "Online" is accurate.
+        const data = await response.json();
         setListenerStatus("Online (Ready for Audio)");
+        setProfileCount(data.registered_profiles ?? 0);
+        setParentName(data.parent_name ?? "");
       } else {
-        setListenerStatus("Error: Backend unreachable");
+        setListenerStatus("Disconnected");
       }
-    } catch (error) {
+    } catch {
       setListenerStatus("Disconnected");
     }
+  };
+
+  const fetchLastResult = async () => {
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/audio/last-result`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status && data.status !== "No data yet — waiting for ESP32 audio.") {
+          const threat = data.class_id === 1;
+          setPrediction(
+            `Status: ${data.status}\nConfidence: ${data.probability}  |  Volume: ${data.amplitude_db} dB\nDevice: ${data.device_info ?? "ESP32"}${
+              data.mitigation_message ? `\n⚠️ ${data.mitigation_message}` : ""
+            }`
+          );
+        }
+      }
+    } catch { /* backend offline */ }
   };
 
   const fetchAlerts = async () => {
@@ -275,10 +303,15 @@ function StatusAndAlertsTab({ apiBaseUrl }: { apiBaseUrl: string }) {
     <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Listener Status</Text>
-        <Text style={[styles.statusText, listenerStatus === "Connected" ? styles.statusGreen : styles.statusRed]}>
+        <Text style={[styles.statusText, listenerStatus.startsWith("Online") ? styles.statusGreen : styles.statusRed]}>
           {listenerStatus}
         </Text>
-        <View style={styles.buttonRow}>
+        {parentName ? (
+          <Text style={styles.noDataText}>Registered guardian: <Text style={{fontWeight:"700",color:"#1F2937"}}>{parentName}</Text> ({profileCount} profile{profileCount !== 1 ? "s" : ""})</Text>
+        ) : (
+          <Text style={styles.noDataText}>No voice profile registered yet. Go to Register Voice tab.</Text>
+        )}
+        <View style={[styles.buttonRow, {marginTop: 14}]}>
           <TouchableOpacity style={[styles.button, styles.btnStart]} onPress={startGuardian}>
             <Text style={styles.buttonText}>Start Guardian</Text>
           </TouchableOpacity>
@@ -289,17 +322,20 @@ function StatusAndAlertsTab({ apiBaseUrl }: { apiBaseUrl: string }) {
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Test Mic Stream</Text>
-        <TouchableOpacity
-          style={[styles.button, styles.btnTest, isRecording && styles.btnDisabled]}
-          onPress={testMicStream}
-          disabled={isRecording}
-        >
-          <Text style={styles.buttonText}>
-            {isRecording ? "Recording..." : "Record 3s Test"}
+        <Text style={styles.cardTitle}>ESP32 Device</Text>
+        <Text style={styles.noDataText}>
+          🎙️ Audio data is received directly from the ESP32 microphone device.{"\n"}
+          Ensure the device is powered on and connected to the same Wi-Fi network as this server.
+        </Text>
+        {prediction ? (
+          <View style={[styles.alertItem, { marginTop: 10 }]}>
+            <Text style={styles.predictionText}>{prediction}</Text>
+          </View>
+        ) : (
+          <Text style={[styles.noDataText, { marginTop: 6 }]}>
+            Waiting for audio from ESP32...
           </Text>
-        </TouchableOpacity>
-        {prediction ? <Text style={styles.predictionText}>{prediction}</Text> : null}
+        )}
       </View>
 
       <View style={styles.card}>
@@ -343,15 +379,89 @@ const PROMPT_WORDS = [
 ];
 
 function RegisterVoiceTab({ apiBaseUrl }: { apiBaseUrl: string }) {
-  const [parentName, setParentName] = useState("Vidusha");
+  const [parentName, setParentName] = useState("");
+  const [role, setRole] = useState("parent");
   const [deviceType, setDeviceType] = useState("Phone Microphone");
-  const [isRecording, setIsRecording] = useState(false);
+  const [isRecording, setIsRecording] = useState(false); // repurposed as 'armed'
+  const [isUploading, setIsUploading] = useState(false);
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [promptIndex, setPromptIndex] = useState(-1);
   const [timeLeft, setTimeLeft] = useState(10);
-  
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [armed, setArmed] = useState(false);
+  const [armCountdown, setArmCountdown] = useState(0);
+
   const recordingRef = useRef<Audio.Recording | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => { fetchProfiles(); }, []);
+
+  const fetchProfiles = async () => {
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/audio/profiles`);
+      if (res.ok) {
+        const data = await res.json();
+        setProfiles(data.profiles || []);
+      }
+    } catch { /* backend offline, ignore */ }
+  };
+
+  const deleteProfile = async (id: string) => {
+    try {
+      await fetch(`${apiBaseUrl}/api/audio/profiles/${id}`, { method: "DELETE" });
+      fetchProfiles();
+    } catch {
+      Alert.alert("Error", "Could not delete profile.");
+    }
+  };
+
+  /** Arms the backend to capture the next ESP32 chunk as a registration profile. */
+  const armEsp32Registration = async () => {
+    if (!parentName.trim()) {
+      Alert.alert("Required", "Please enter a name first.");
+      return;
+    }
+    setIsUploading(true);
+    setUploadStatus(null);
+    try {
+      const formData = new FormData();
+      formData.append("person_name", parentName.trim());
+      formData.append("role", role);
+      const res = await fetch(`${apiBaseUrl}/api/audio/register-next-chunk`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.armed) {
+        setArmed(true);
+        setArmCountdown(6); // ESP32 sends a chunk every ~3.5s, so 6s is safe
+        setUploadStatus("🎙️ Speak clearly near the ESP32 now...");
+        // Poll status every second until captured
+        const timer = setInterval(async () => {
+          setArmCountdown((c) => {
+            if (c <= 1) clearInterval(timer);
+            return c - 1;
+          });
+          const statusRes = await fetch(`${apiBaseUrl}/api/audio/register-next-chunk/status`);
+          const status = await statusRes.json();
+          if (!status.armed) {
+            // Backend captured the chunk — poll /profiles to confirm
+            clearInterval(timer);
+            setArmed(false);
+            fetchProfiles();
+            setUploadStatus(`✅ Voice profile for ${parentName} saved from ESP32!`);
+          }
+        }, 1000);
+      } else {
+        setUploadStatus(`❌ ${data.error || "Failed to arm."}`);
+      }
+    } catch (err: any) {
+      setUploadStatus(`❌ Network error: ${err.message}`);
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const startGuidedRecording = async () => {
     if (!parentName.trim()) {
@@ -416,11 +526,17 @@ function RegisterVoiceTab({ apiBaseUrl }: { apiBaseUrl: string }) {
 
   const submitProfile = async () => {
     if (!audioUri) return;
+    if (!parentName.trim()) {
+      Alert.alert("Required", "Please enter a name before uploading.");
+      return;
+    }
+    setIsUploading(true);
+    setUploadStatus(null);
     try {
       const formData = new FormData();
       if (Platform.OS === "web") {
-        const response = await fetch(audioUri);
-        const blob = await response.blob();
+        const blobResp = await fetch(audioUri);
+        const blob = await blobResp.blob();
         const fileObj = new File([blob], "parent_voice.wav", { type: "audio/wav" });
         formData.append("file", fileObj);
       } else {
@@ -430,101 +546,122 @@ function RegisterVoiceTab({ apiBaseUrl }: { apiBaseUrl: string }) {
           type: "audio/wav",
         } as any);
       }
-      formData.append("parent_name", parentName);
+      formData.append("parent_name", parentName.trim());
+      formData.append("role", role);
 
       const response = await fetch(`${apiBaseUrl}/api/audio/register-parent`, {
         method: "POST",
         body: formData,
       });
+      const data = await response.json();
 
-      if (response.ok) {
-        Alert.alert("Success", `Voice profile for ${parentName} saved successfully!`);
+      if (response.ok && data.success) {
+        setUploadStatus(`✅ Profile saved! MFCC shape: ${data.mfcc_shape?.join("×")}`);
         setAudioUri(null);
         setPromptIndex(-1);
+        fetchProfiles();
       } else {
-        const errText = await response.text();
-        console.error("Upload failed with status:", response.status, errText);
-        Alert.alert("Error", `Failed to save profile: ${errText}`);
+        const errMsg = data.error || JSON.stringify(data);
+        setUploadStatus(`❌ ${errMsg}`);
+        Alert.alert("Upload Failed", errMsg);
       }
-    } catch (error: any) {
-      console.error("Upload fetch error:", error);
-      Alert.alert("Error", `Upload exception: ${error.message}`);
+    } catch (err: any) {
+      const msg = `Network error: ${err.message}`;
+      setUploadStatus(`❌ ${msg}`);
+      Alert.alert("Error", msg);
+    } finally {
+      setIsUploading(false);
     }
   };
 
   return (
     <ScrollView style={styles.tabContent}>
+      {/* Registered Profiles */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Dynamic Parent Identity</Text>
-        
-        <Text style={styles.inputLabel}>Parent Name</Text>
+        <Text style={styles.cardTitle}>Registered Profiles</Text>
+        {profiles.length === 0 ? (
+          <Text style={styles.noDataText}>No voice profiles registered yet.</Text>
+        ) : (
+          profiles.map((p) => (
+            <View key={p.id} style={[styles.alertItem, {flexDirection:"row", justifyContent:"space-between", alignItems:"center"}]}>
+              <View>
+                <Text style={{fontWeight:"700",color:"#1F2937"}}>{p.person_name}</Text>
+                <Text style={styles.alertDevice}>Role: {p.role} · {p.is_active ? "✅ Active" : "⛔ Inactive"}</Text>
+                <Text style={styles.alertDevice}>{new Date(p.created_at).toLocaleDateString()}</Text>
+              </View>
+              <TouchableOpacity onPress={() => deleteProfile(p.id)}>
+                <Text style={{color:"#EF4444",fontWeight:"600"}}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
+      </View>
+
+      {/* Identity form */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Register New Voice</Text>
+
+        <Text style={styles.inputLabel}>Person Name *</Text>
         <TextInput
           style={styles.textInput}
           value={parentName}
           onChangeText={setParentName}
-          placeholder="Enter your name (e.g. Vidusha)"
+          placeholder="e.g. Mama, Vidusha, Nanny Sara"
         />
 
-        <Text style={styles.inputLabel}>Audio Source Device (Tag)</Text>
+        <Text style={styles.inputLabel}>Role</Text>
         <View style={styles.deviceRow}>
-          <TouchableOpacity 
-            style={[styles.deviceBtn, deviceType === "Phone Microphone" && styles.deviceBtnActive]}
-            onPress={() => setDeviceType("Phone Microphone")}
-          >
-            <Text style={[styles.deviceBtnText, deviceType === "Phone Microphone" && styles.deviceBtnTextActive]}>Phone Mic</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.deviceBtn, deviceType === "Headset" && styles.deviceBtnActive]}
-            onPress={() => setDeviceType("Headset")}
-          >
-            <Text style={[styles.deviceBtnText, deviceType === "Headset" && styles.deviceBtnTextActive]}>Headset</Text>
-          </TouchableOpacity>
+          {["parent","guardian","caregiver"].map((r) => (
+            <TouchableOpacity
+              key={r}
+              style={[styles.deviceBtn, role === r && styles.deviceBtnActive]}
+              onPress={() => setRole(r)}
+            >
+              <Text style={[styles.deviceBtnText, role === r && styles.deviceBtnTextActive]}>
+                {r.charAt(0).toUpperCase()+r.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={styles.inputLabel}>Recording Device</Text>
+        <View style={[styles.deviceBtn, styles.deviceBtnActive, {alignItems:"center", paddingVertical:12}]}>
+          <Text style={[styles.deviceBtnText, styles.deviceBtnTextActive]}>🎙️ ESP32 Microphone</Text>
         </View>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Guided Voice Registration</Text>
+        <Text style={styles.cardTitle}>ESP32 Voice Registration</Text>
         <Text style={styles.instructions}>
-          The AI needs a robust sample of your voice. Read the phrases on the screen as they appear.
+          Click the button below, then speak clearly near the ESP32. The next 3-second audio chunk sent by the device will be saved as your voice profile automatically.
         </Text>
 
-        {isRecording && promptIndex >= 0 ? (
-          <View style={styles.teleprompterContainer}>
-            <Text style={styles.promptHelper}>Say the following phrase:</Text>
-            <Text style={styles.promptWord}>
-              {promptIndex === 0 && PROMPT_WORDS[0].includes("name is") 
-                  ? `${PROMPT_WORDS[0]} ${parentName}` 
-                  : PROMPT_WORDS[promptIndex]}
-            </Text>
-            <Text style={styles.timerText}>Next phrase in: {timeLeft}s</Text>
-            
-            <View style={styles.recordingIndicator}>
-              <View style={styles.pulsingCircle} />
-              <Text style={styles.recordingText}>Recording...</Text>
-            </View>
-            
-            <TouchableOpacity style={[styles.button, styles.btnStop, {marginTop: 20}]} onPress={finishRecording}>
-              <Text style={styles.buttonText}>Stop Early</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View>
-            {!audioUri ? (
-              <TouchableOpacity style={[styles.button, styles.btnStart]} onPress={startGuidedRecording}>
-                <Text style={styles.buttonText}>Start Guided Registration</Text>
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.submitSection}>
-                <Text style={styles.successText}>Voice profile successfully recorded!</Text>
-                <TouchableOpacity style={[styles.button, styles.btnSubmit]} onPress={submitProfile}>
-                  <Text style={styles.buttonText}>Upload & Save Profile</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={{marginTop: 15}} onPress={() => setAudioUri(null)}>
-                  <Text style={{color: "#EF4444", fontWeight: "600"}}>Discard & Retake</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
+        {uploadStatus && (
+          <Text style={{
+            marginBottom: 14,
+            color: uploadStatus.startsWith("✅") ? "#10B981" : uploadStatus.startsWith("🎙️") ? "#F59E0B" : "#EF4444",
+            fontWeight: "600",
+            textAlign: "center",
+            fontSize: 15,
+          }}>
+            {uploadStatus}{armed && armCountdown > 0 ? `  (${armCountdown}s)` : ""}
+          </Text>
+        )}
+
+        <TouchableOpacity
+          style={[styles.button, armed ? styles.btnStop : styles.btnStart, (isUploading || armed) && styles.btnDisabled]}
+          onPress={armEsp32Registration}
+          disabled={isUploading || armed}
+        >
+          <Text style={styles.buttonText}>
+            {armed ? `⏳ Listening... (${armCountdown}s)` : "🎙️ Arm ESP32 & Register Voice"}
+          </Text>
+        </TouchableOpacity>
+
+        {uploadStatus?.startsWith("✅") && (
+          <TouchableOpacity style={{marginTop: 14, alignItems:"center"}} onPress={() => setUploadStatus(null)}>
+            <Text style={{color:"#6B7280", fontSize:13}}>Register another person</Text>
+          </TouchableOpacity>
         )}
       </View>
       <View style={{ height: 40 }} />
