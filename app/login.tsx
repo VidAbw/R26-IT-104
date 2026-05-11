@@ -14,7 +14,6 @@ import {
   View,
 } from "react-native";
 import { supabase } from "../lib/supabase";
-import { LinearGradient } from 'expo-linear-gradient'; // Ensure this is installed or use View with bgColor
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");

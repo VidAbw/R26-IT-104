@@ -61,7 +61,6 @@ export default function LegalGuidanceScreen() {
         laws: "නීති",
         validationError: "කරුණාකර අර්ථවත් අපයෝජනයට අදාළ සිද්ධි විස්තරයක් ඇතුළත් කරන්න.",
         section: "වගන්තිය",
-        sections: "වගන්ති",
         englishLang: "ඉංග්‍රීසි",
         sinhalaLang: "සිංහල",
         categories: {
@@ -110,7 +109,6 @@ export default function LegalGuidanceScreen() {
         laws: "Laws",
         validationError: "Please enter a meaningful abuse-related incident description.",
         section: "section",
-        sections: "sections",
         englishLang: "English",
         sinhalaLang: "Sinhala",
         categories: {
