@@ -1,50 +1,64 @@
-# Welcome to your Expo app 👋
+# Group 104 - Child Safety Ecosystem
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Welcome to the **Child Safety Ecosystem**, a comprehensive platform designed to provide intelligent monitoring, real-time alerts, and legal guidance to ensure child safety. This project is built using an Expo (React Native) frontend, a FastAPI backend for AI model processing, and Supabase for real-time database and authentication.
 
-## Get started
+## 🌟 Project Overview
 
-1. Install dependencies
+The Child Safety Ecosystem integrates AI-driven computer vision and audio analysis to detect potential child abuse or environmental hazards. It provides a Nanny Cam dashboard for parents, offering peace of mind through constant monitoring and intelligent alerts.
 
-   ```bash
-   npm install
-   ```
+### Core Architecture
+- **Frontend**: React Native with Expo, utilizing file-based routing.
+- **Backend Services**: FastAPI handling YOLOv8 and MediaPipe for threat detection, and audio processing algorithms.
+- **Database & Auth**: Supabase handles secure authentication and real-time syncing of threat alerts.
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## 🚀 Key Features by Branch
 
-In the output, you'll find options to open the app in a
+This repository contains multiple feature branches developed by our team members. Below is a summary of the specialized modules available in their respective branches:
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### 👩‍💻 Malithi's Branch
+**Focus**: Legal Guidance & Parent Profiles
+- **Legal RAG System (Retrieval-Augmented Generation)**: An AI-driven module providing specific legal guidance on child abuse incidents.
+- **Bilingual Support**: Fully supports English and Sinhala (`si`) queries.
+- **Legal Guidance UI**: Dedicated screens for parents to query the AI, receive decision roadmaps, and read relevant laws.
+- **Parent Profile**: UI for managing parent details, including an image picker and state store management.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### 👨‍💻 Vidusha's Branch
+**Focus**: Guardian Dashboard & Audio Threat Detection
+- **Guardian Dashboard**: A real-time monitoring interface that connects directly to the FastAPI server and Supabase.
+- **Dynamic API Configuration**: Allows parents to update the backend server IP dynamically without recompiling the app.
+- **Real-Time Acoustic Alerts**: Subscribes to Supabase's `audio_threat_alerts` table to notify parents of high/moderate threats instantly.
+- **Guided Voice Registration**: A teleprompter-style interface that guides parents through voice registration, training the AI to recognize "Dynamic Parent Identity" via audio processing.
 
-## Get a fresh project
+---
 
-When you're ready, run:
+## 🛠️ Getting Started
 
+To run the main dashboard locally:
+
+### 1. Install dependencies
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 2. Environment Variables
+Ensure you have your `.env` file configured with your Supabase credentials and default API URLs:
+```env
+EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_key
+EXPO_PUBLIC_API_URL=http://your_fastapi_backend_ip:8000
+```
 
-## Learn more
+### 3. Start the App
+```bash
+npx expo start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+In the output, you can choose to run the app on:
+- Android Emulator
+- iOS Simulator
+- Expo Go on a physical device
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## 🤝 Contribution Guidelines
+When checking out specific features, make sure to sync your local environment variables and ensure the FastAPI backend is running before testing real-time components like the Guardian Dashboard or the Legal RAG client.
