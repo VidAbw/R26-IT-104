@@ -9,8 +9,12 @@ const InitialLayout = () => {
   const segments = useSegments();
   const router = useRouter();
 
+  // Set this to true to bypass authentication during development/testing
+  const BYPASS_AUTH = true;
+
   useEffect(() => {
     if (isLoading) return;
+    if (BYPASS_AUTH) return;
 
     const inAuthGroup = segments[0] === "login" || segments[0] === "register";
 

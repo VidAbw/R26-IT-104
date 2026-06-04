@@ -11,7 +11,7 @@ import {
   Platform,
 } from "react-native"
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons"
-import { parseRoadmapSteps, queryLegalRAG } from "../../lib/legal"
+import { parseRoadmapSteps, queryLegalRAG, LegalResult } from "../../lib/legal"
 
 export default function LegalGuidanceScreen() {
   const { width } = useWindowDimensions()
@@ -22,7 +22,7 @@ export default function LegalGuidanceScreen() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [validationError, setValidationError] = useState("")
-  const [result, setResult] = useState<any>(null)
+  const [result, setResult] = useState<LegalResult | null>(null)
 
   const uiText = language === "si"
     ? {
@@ -40,6 +40,10 @@ export default function LegalGuidanceScreen() {
         sections: "වගන්ති",
         relevantLawsTitle: "අදාළ නීති",
         relevantLawsSubtitle: "මෙම තත්වයට අදාළ විය හැකි නීති සහ වගන්ති.",
+        primaryOffencesTitle: "ප්‍රධාන අපරාධ වැරදි (දණ්ඩ නීති සංග්‍රහය)",
+        primaryOffencesSubtitle: "ළමා අපයෝජන අපරාධ සහ දඬුවම් අර්ථ දක්වන වගන්ති.",
+        protectionGuidanceTitle: "ආරක්ෂණ සහ අධිකාරී මාර්ගෝපදේශ (NCPA පනත)",
+        protectionGuidanceSubtitle: "පැමිණිලි කිරීම් සහ පරීක්ෂණ ක්‍රියා පටිපාටි පෙන්වන විධිවිධාන.",
         whatItMeans: "එයින් අදහස් කරන්නේ කුමක්ද:",
         reportingGuidance: "පැමිණිලි කිරීමේ උපදෙස්:",
         decisionRoadmap: "ක්‍රියාමාර්ග සැලැස්ම",
@@ -88,6 +92,10 @@ export default function LegalGuidanceScreen() {
         sections: "sections",
         relevantLawsTitle: "Relevant Laws",
         relevantLawsSubtitle: "Laws and sections that may apply to this situation.",
+        primaryOffencesTitle: "Primary Criminal Offences (Penal Code)",
+        primaryOffencesSubtitle: "Penal Code sections defining child abuse crimes and penalties.",
+        protectionGuidanceTitle: "Protection & Authority Guidelines (NCPA Act)",
+        protectionGuidanceSubtitle: "NCPA Act provisions outlining reporting and inspection procedures.",
         whatItMeans: "What it means:",
         reportingGuidance: "Reporting Guidance:",
         decisionRoadmap: "Decision Roadmap",
@@ -294,8 +302,8 @@ export default function LegalGuidanceScreen() {
             <View>
               <Text style={styles.statLabel}>{uiText.detectedLanguage}</Text>
               <Text style={styles.statValue}>
-                {result.detected_language?.toLowerCase() === 'sinhala' ? uiText.sinhalaLang : 
-                 result.detected_language?.toLowerCase() === 'english' ? uiText.englishLang : 
+                {result.detected_language?.toLowerCase() === 'si' || result.detected_language?.toLowerCase() === 'sinhala' ? uiText.sinhalaLang : 
+                 result.detected_language?.toLowerCase() === 'en' || result.detected_language?.toLowerCase() === 'english' ? uiText.englishLang : 
                  (result.detected_language || 'English')}
               </Text>
             </View>
@@ -314,9 +322,9 @@ export default function LegalGuidanceScreen() {
               <Text style={styles.statValue}>
                 {language === 'si' && result.abuse_category_si ? result.abuse_category_si :
                  language === 'en' && result.abuse_category_en ? result.abuse_category_en :
-                 ((uiText as any).categories?.[result.abuse_category?.toLowerCase()] || 
+                 (uiText.categories?.[result.abuse_category?.toLowerCase() as keyof typeof uiText.categories] || 
                   result.abuse_category?.split(' ').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || 
-                  (uiText as any).categories?.["general abuse"])}
+                  uiText.categories?.["general abuse"])}
               </Text>
             </View>
             <TouchableOpacity>
@@ -356,41 +364,103 @@ export default function LegalGuidanceScreen() {
               </View>
             </View>
 
-            {result.relevant_laws?.map((law: any, idx: number) => (
-              <View key={idx} style={styles.lawCard}>
-                <View style={styles.lawCardHeader}>
-                  <View style={styles.lawBadge}>
-                    <Text style={styles.lawBadgeText}>{idx + 1}</Text>
-                  </View>
-                  <View>
-                    <Text style={styles.lawSectionText}>{uiText.section} {law.section}</Text>
-                    <Text style={styles.lawTitleText}>
-                      {language === 'si' && law.title_si ? law.title_si :
-                       language === 'en' && law.title_en ? law.title_en :
-                       law.title}
-                    </Text>
-                  </View>
+            {/* Primary Offences */}
+            {result.relevant_laws?.filter(l => l.law_type !== 'supporting').length > 0 && (
+              <View style={{ marginBottom: 24 }}>
+                <View style={styles.subSectionHeader}>
+                  <Text style={styles.subSectionTitle}>{uiText.primaryOffencesTitle}</Text>
+                  <Text style={styles.subSectionSubtitle}>{uiText.primaryOffencesSubtitle}</Text>
                 </View>
-                <View style={styles.lawContent}>
-                  <Text style={styles.lawLabel}>{uiText.whatItMeans}</Text>
-                  <Text style={styles.lawDescription}>
-                    {language === 'si' && law.simple_explanation_si ? law.simple_explanation_si :
-                     language === 'en' && law.simple_explanation_en ? law.simple_explanation_en :
-                     law.simple_explanation}
-                  </Text>
-                  
-                  <View style={styles.guidanceBox}>
-                    <Ionicons name="checkmark-circle" size={18} color="#2563eb" />
-                    <Text style={styles.guidanceText}>
-                      <Text style={styles.guidanceLabel}>{uiText.reportingGuidance} </Text>
-                      {language === 'si' && law.reporting_guidance_si ? law.reporting_guidance_si :
-                       language === 'en' && law.reporting_guidance_en ? law.reporting_guidance_en :
-                       law.reporting_guidance}
-                    </Text>
-                  </View>
-                </View>
+                {result.relevant_laws
+                  ?.filter(l => l.law_type !== 'supporting')
+                  .map((law, idx) => (
+                    <View key={`primary-${idx}`} style={styles.lawCard}>
+                      <View style={styles.lawCardHeader}>
+                        <View style={styles.lawBadge}>
+                          <Text style={styles.lawBadgeText}>{idx + 1}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.lawSectionText}>
+                            {law.law_name ? `${law.law_name} - ` : ""}{uiText.section} {law.section}
+                          </Text>
+                          <Text style={styles.lawTitleText}>
+                            {language === 'si' && law.title_si ? law.title_si :
+                             language === 'en' && law.title_en ? law.title_en :
+                             law.title}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.lawContent}>
+                        <Text style={styles.lawLabel}>{uiText.whatItMeans}</Text>
+                        <Text style={styles.lawDescription}>
+                          {language === 'si' && law.simple_explanation_si ? law.simple_explanation_si :
+                           language === 'en' && law.simple_explanation_en ? law.simple_explanation_en :
+                           law.simple_explanation}
+                        </Text>
+                        
+                        <View style={styles.guidanceBox}>
+                          <Ionicons name="checkmark-circle" size={18} color="#2563eb" />
+                          <Text style={styles.guidanceText}>
+                            <Text style={styles.guidanceLabel}>{uiText.reportingGuidance} </Text>
+                            {language === 'si' && law.reporting_guidance_si ? law.reporting_guidance_si :
+                             language === 'en' && law.reporting_guidance_en ? law.reporting_guidance_en :
+                             law.reporting_guidance}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  ))}
               </View>
-            ))}
+            )}
+
+            {/* Protection Guidance / NCPA Act */}
+            {result.relevant_laws?.filter(l => l.law_type === 'supporting').length > 0 && (
+              <View style={{ marginBottom: 24 }}>
+                <View style={[styles.subSectionHeader, { marginTop: 12 }]}>
+                  <Text style={[styles.subSectionTitle, { color: '#0f766e' }]}>{uiText.protectionGuidanceTitle}</Text>
+                  <Text style={styles.subSectionSubtitle}>{uiText.protectionGuidanceSubtitle}</Text>
+                </View>
+                {result.relevant_laws
+                  ?.filter(l => l.law_type === 'supporting')
+                  .map((law, idx) => (
+                    <View key={`supporting-${idx}`} style={[styles.lawCard, styles.supportingLawCard]}>
+                      <View style={styles.lawCardHeader}>
+                        <View style={[styles.lawBadge, styles.supportingLawBadge]}>
+                          <Text style={[styles.lawBadgeText, styles.supportingLawBadgeText]}>{idx + 1}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.lawSectionText, { color: '#0f766e' }]}>
+                            {law.law_name ? `${law.law_name} - ` : ""}{uiText.section} {law.section}
+                          </Text>
+                          <Text style={[styles.lawTitleText, { color: '#115e59' }]}>
+                            {language === 'si' && law.title_si ? law.title_si :
+                             language === 'en' && law.title_en ? law.title_en :
+                             law.title}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.lawContent}>
+                        <Text style={styles.lawLabel}>{uiText.whatItMeans}</Text>
+                        <Text style={styles.lawDescription}>
+                          {language === 'si' && law.simple_explanation_si ? law.simple_explanation_si :
+                           language === 'en' && law.simple_explanation_en ? law.simple_explanation_en :
+                           law.simple_explanation}
+                        </Text>
+                        
+                        <View style={[styles.guidanceBox, styles.supportingGuidanceBox]}>
+                          <Ionicons name="shield-checkmark" size={18} color="#0f766e" />
+                          <Text style={styles.guidanceText}>
+                            <Text style={[styles.guidanceLabel, { color: '#0f766e' }]}>{uiText.reportingGuidance} </Text>
+                            {language === 'si' && law.reporting_guidance_si ? law.reporting_guidance_si :
+                             language === 'en' && law.reporting_guidance_en ? law.reporting_guidance_en :
+                             law.reporting_guidance}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+              </View>
+            )}
 
             <View style={styles.disclaimerBox}>
               <Ionicons name="information-circle" size={20} color="#3b82f6" />
@@ -414,7 +484,7 @@ export default function LegalGuidanceScreen() {
               <View style={styles.roadmapTimeline}>
                 {(language === 'si' && result.decision_roadmap_si ? parseRoadmapSteps(result.decision_roadmap_si) :
                   language === 'en' && result.decision_roadmap_en ? parseRoadmapSteps(result.decision_roadmap_en) :
-                  parseRoadmapSteps(result.decision_roadmap)).map((step: any, idx: number) => (
+                  parseRoadmapSteps(result.decision_roadmap)).map((step, idx) => (
                   <View key={idx} style={styles.roadmapItem}>
                     <View style={styles.roadmapLeft}>
                       <View style={styles.stepCircle}>
@@ -1172,6 +1242,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#b91c1c',
     lineHeight: 20,
+  },
+  subSectionHeader: {
+    marginBottom: 16,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  subSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1e3a8a',
+    marginBottom: 4,
+  },
+  subSectionSubtitle: {
+    fontSize: 13,
+    color: '#64748b',
+  },
+  supportingLawCard: {
+    borderColor: '#ccfbf1',
+    backgroundColor: '#fafdfd',
+  },
+  supportingLawBadge: {
+    backgroundColor: '#ccfbf1',
+  },
+  supportingLawBadgeText: {
+    color: '#0f766e',
+  },
+  supportingGuidanceBox: {
+    backgroundColor: '#f0fdfa',
+    borderColor: '#e2e8f0',
+    borderWidth: 1,
   }
 })
 
