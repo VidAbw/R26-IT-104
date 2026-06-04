@@ -1,4 +1,4 @@
-import { LegalQuery, LegalResult } from "./types";
+import { LegalQuery, LegalResult, LegalLaw } from "./types";
 
 const LEGAL_API_BASE_URL = "http://127.0.0.1:8000/api/rag";
 
@@ -24,7 +24,7 @@ function getMockLegalResult(description: string, language: "en" | "si"): LegalRe
   }
 
   // Pre-configured Sri Lankan child protection legal databases
-  const lawsDatabase = {
+  const lawsDatabase: Record<string, { category_en: string; category_si: string; laws: LegalLaw[]; roadmap: string[]; roadmap_si: string[] }> = {
     "physical abuse": {
       category_en: "Physical Abuse",
       category_si: "ශාරීරික අපයෝජනය",
@@ -61,16 +61,16 @@ function getMockLegalResult(description: string, language: "en" | "si"): LegalRe
       roadmap: [
         "1. Ensure Safety: Move the child to a safe place away from the abuser.",
         "2. Medical Assistance: Take the child to a government hospital for a medical checkup and obtain a JMO report.",
-        "3. Report Incident: Call NCPA Helpline on 1929 or visit the local police station.",
-        "4. Immediate Intervention: Under S33 NCPA Act, authorized officers can enter premises if child is locked up.",
-        "5. Psychological Support & Follow Up: Arrange counseling for the child and cooperate with NCPA officers monitoring case progress under S14."
+        "3. Report Incident: Report to NCPA or the local police station.",
+        "4. Immediate Intervention: In emergency cases, authorized officers can enter premises to rescue the child under S33 NCPA Act.",
+        "5. Psychological Support & Follow Up: Arrange counseling for the child and follow up on safety measures."
       ],
       roadmap_si: [
         "1. ආරක්ෂාව තහවුරු කරන්න: දරුවාව අපයෝජකයාගෙන් ඉවත් කර ආරක්ෂිත ස්ථානයකට ගෙන යන්න.",
         "2. වෛද්‍ය ආධාර: වෛද්‍ය වාර්තාවක් (JMO) සඳහා දරුවා රජයේ රෝහලකට ඇතුළත් කරන්න.",
-        "3. සිද්ධිය වාර්තා කරන්න: 1929 ළමා උපකාරක අංකය අමතන්න හෝ ළඟම ඇති පොලිසියේ ළමා හා කාන්තා කාර්යාංශයට යන්න.",
-        "4. ක්ෂණික මැදිහත්වීම: NCPA පනතේ 33 වගන්තිය යටතේ දරුවා කොටුකර සිටින ස්ථානවලට වරෙන්තුවක් නොමැතිව ඇතුළු වීමට බලයලත් නිලධාරීන්ට හැකිය.",
-        "5. මානසික සහාය සහ පසු විපරම්: දරුවාට උපදේශන ලබා දී 14 වගන්තිය යටතේ නඩුව අධීක්ෂණය කරන ළමා ආරක්ෂක නිලධාරීන් සමඟ සහයෝගයෙන් කටයුතු කරන්න."
+        "3. සිද්ධිය වාර්තා කරන්න: ළඟම ඇති පොලිසියට හෝ NCPA වෙත සිද්ධිය වාර්තා කරන්න.",
+        "4. ක්ෂණික මැදිහත්වීම: NCPA පනතේ 33 වගන්තිය යටතේ දරුවා බේරා ගැනීමට පරිශ්‍රයන්ට ඇතුළු වීමට බලයලත් නිලධාරීන්ට හැකිය.",
+        "5. මානසික සහාය සහ පසු විපරම්: දරුවාට මනෝවිද්‍යාත්මක උපදේශන ලබා දී ආරක්ෂක පියවරයන් පසු විපරම් කරන්න."
       ]
     },
     "sexual abuse": {
@@ -90,35 +90,21 @@ function getMockLegalResult(description: string, language: "en" | "si"): LegalRe
           reporting_guidance: "Do not wash the child or change their clothes before the medical examination to preserve DNA and physical evidence. Report immediately to 1929.",
           reporting_guidance_en: "Do not wash the child or change their clothes before the medical examination to preserve DNA and physical evidence. Report immediately to 1929.",
           reporting_guidance_si: "ඩී.එන්.ඒ. සහ අනෙකුත් භෞතික සාක්ෂි සුරක්ෂිතව තබා ගැනීම සඳහා වෛද්‍ය පරීක්ෂණයට පෙර දරුවා සේදීම හෝ ඇඳුම් මාරු කිරීම නොකරන්න. වහාම 1929 අමතන්න."
-        },
-        {
-          section: "14",
-          law_name: "National Child Protection Authority Act, No. 50 of 1998",
-          law_type: "supporting",
-          title: "Functions of the Authority",
-          title_en: "Functions of the Authority",
-          title_si: "අධිකාරියේ කාර්යයන්",
-          simple_explanation: "The NCPA is legally mandated to run the 1929 Child Helpline, receive child abuse reports, refer cases to police/probation, and monitor the progress of investigations.",
-          simple_explanation_en: "The NCPA is legally mandated to run the 1929 Child Helpline, receive child abuse reports, refer cases to police/probation, and monitor the progress of investigations.",
-          simple_explanation_si: "1929 ළමා උපකාරක අංකය ක්‍රියාත්මක කිරීමට, ළමා අපයෝජන වාර්තා භාර ගැනීමට, නඩු පොලිසියට/පරිවාසයට යොමු කිරීමට සහ විමර්ශනවල ප්‍රගතිය නිරීක්ෂණය කිරීමට NCPA නීත්‍යානුකූලව බැඳී සිටී.",
-          reporting_guidance: "All complaints submitted to the 1929 helpline are registered and processed under this section.",
-          reporting_guidance_en: "All complaints submitted to the 1929 helpline are registered and processed under this section.",
-          reporting_guidance_si: "1929 උපකාරක අංකයට ඉදිරිපත් කරන සියලුම පැමිණිලි මෙම වගන්තිය යටතේ ලියාපදිංචි කර ක්‍රියාත්මක කරනු ලැබේ."
         }
       ],
       roadmap: [
         "1. Immediate Protection: Protect the child from further contact with the perpetrator.",
         "2. Medical Preservation: Do not clean the child; take them directly to a government hospital.",
-        "3. Lodge Complaint: Call NCPA Helpline on 1929 (processed under Section 14) or 119 Emergency.",
+        "3. Lodge Complaint: Report to NCPA or Police Child Desk.",
         "4. Legal Counseling: Seek assistance from legal aid services specializing in child abuse.",
-        "5. Long-term Rehabilitation: Provide therapy and support to ensure child safety and recovery, monitored by the NCPA."
+        "5. Long-term Rehabilitation: Provide therapy and support to ensure child safety and recovery."
       ],
       roadmap_si: [
         "1. ක්ෂණික ආරක්ෂාව: වහාම දරුවා අපරාධකරුගෙන් වෙන් කර ආරක්ෂා කරන්න.",
         "2. සාක්ෂි සුරැකීම: දරුවාව පිරිසිදු නොකර සෘජුවම රජයේ රෝහලක අධිකරණ වෛද්‍යවරයා (JMO) වෙත රැගෙන යන්න.",
-        "3. පැමිණිල්ල ඉදිරිපත් කිරීම: 1929 ළමා උපකාරක සේවය (14 වගන්තිය යටතේ ක්‍රියාත්මක වන) හෝ 119 හදිසි අංකය අමතන්න.",
+        "3. පැමිණිල්ල ඉදිරිපත් කිරීම: පොලිසියේ ළමා අංශයට හෝ NCPA වෙත පැමිණිලි කරන්න.",
         "4. නීති උපදේශනය: ළමා අපයෝජන නඩු සඳහා විශේෂඥ නීති ආධාර සේවාවන්හි සහාය ලබා ගන්න.",
-        "5. දිගුකාලීන පුනරුත්ථාපනය: දරුවාගේ සුවය ලැබීම සඳහා දිගුකාලීන ප්‍රතිකාර ලබා දෙන්න. NCPA නිලධාරීන් මෙම ක්‍රියාවලිය අධීක්ෂණය කරනු ඇත."
+        "5. දිගුකාලීන පුනරුත්ථාපනය: දරුවාගේ සුවය ලැබීම සඳහා දිගුකාලීන ප්‍රතිකාර සහ චිකිත්සක සහාය ලබා දෙන්න."
       ]
     },
     "digital abuse": {
@@ -138,34 +124,20 @@ function getMockLegalResult(description: string, language: "en" | "si"): LegalRe
           reporting_guidance: "Take screenshots of the online conversations, profiles, and media. Do not delete the account data. Report to Sri Lanka CERT (0112 691 692) or NCPA.",
           reporting_guidance_en: "Take screenshots of the online conversations, profiles, and media. Do not delete the account data. Report to Sri Lanka CERT (0112 691 692) or NCPA.",
           reporting_guidance_si: "අදාළ වෙබ් පිටු, ගිණුම් විස්තර සහ මැසේජ් වල ස්ක්‍රීන්ෂොට් (Screenshots) ලබා ගන්න. සාක්ෂි මකා නොදමා වහාම NCPA හෝ CERT ආයතනයට වාර්තා කරන්න."
-        },
-        {
-          section: "14",
-          law_name: "National Child Protection Authority Act, No. 50 of 1998",
-          law_type: "supporting",
-          title: "Functions of the Authority",
-          title_en: "Functions of the Authority",
-          title_si: "අධිකාරියේ කාර්යයන්",
-          simple_explanation: "The NCPA is legally mandated to run the 1929 Child Helpline, receive child abuse reports, refer cases to police/probation, and monitor the progress of investigations.",
-          simple_explanation_en: "The NCPA is legally mandated to run the 1929 Child Helpline, receive child abuse reports, refer cases to police/probation, and monitor the progress of investigations.",
-          simple_explanation_si: "1929 ළමා උපකාරක අංකය ක්‍රියාත්මක කිරීමට, ළමා අපයෝජන වාර්තා භාර ගැනීමට, නඩු පොලිසියට/පරිවාසයට යොමු කිරීමට සහ විමර්ශනවල ප්‍රගතිය නිරීක්ෂණය කිරීමට NCPA නීත්‍යානුකූලව බැඳී සිටී.",
-          reporting_guidance: "All complaints submitted to the 1929 helpline are registered and processed under this section.",
-          reporting_guidance_en: "All complaints submitted to the 1929 helpline are registered and processed under this section.",
-          reporting_guidance_si: "1929 උපකාරක අංකයට ඉදිරිපත් කරන සියලුම පැමිණිලි මෙම වගන්තිය යටතේ ලියාපදිංචි කර ක්‍රියාත්මක කරනු ලැබේ."
         }
       ],
       roadmap: [
         "1. Evidence Collection: Screenshot all evidence, chat logs, URLs and profiles.",
         "2. Block & Secure: Block the perpetrator and secure the child's online accounts.",
         "3. Local CERT Reporting: Report to Sri Lanka CERT and local cyber crime division.",
-        "4. Notify NCPA: Contact 1929 (mandated under Section 14) to get legal and psychosocial child support.",
+        "4. Notify NCPA: Contact the NCPA to get legal and psychosocial child support.",
         "5. Counsel & Support: Monitor child's device usage and guide them through digital safety rules."
       ],
       roadmap_si: [
         "1. සාක්ෂි එකතු කිරීම: සංවාද, ගිණුම් විස්තර සහ පින්තූරවල ස්ක්‍රීන්ෂොට් සුරක්ෂිත කර ගන්න.",
         "2. අවහිර කිරීම (Block): අදාළ පුද්ගලයා අවහිර කර දරුවාගේ ගිණුම්වල ආරක්ෂාව තහවුරු කරන්න.",
         "3. CERT ආයතනයට පැමිණිලි කිරීම: ශ්‍රී ලංකා CERT ආයතනයට හෝ සයිබර් අපරාධ අංශයට වාර්තා කරන්න.",
-        "4. NCPA දැනුවත් කිරීම: 1929 අමතා (14 වගන්තිය යටතේ ක්‍රියාත්මක වන) නීතිමය උපදෙස් සහ සහාය ලබා ගන්න.",
+        "4. NCPA දැනුවත් කිරීම: නීතිමය උපදෙස් සහ මනෝවිද්‍යාත්මක සහාය ලබා ගැනීමට NCPA දැනුවත් කරන්න.",
         "5. ඩිජිටල් ආරක්ෂාව: දරුවාගේ අන්තර්ජාල භාවිතය නිරීක්ෂණය කර ආරක්ෂිත ක්‍රමවේද කියා දෙන්න."
       ]
     },
@@ -186,33 +158,19 @@ function getMockLegalResult(description: string, language: "en" | "si"): LegalRe
           reporting_guidance: "Document instances of neglect (lack of food, school dropout, unsafe environment). Inform probation officers or call the NCPA helpline on 1929.",
           reporting_guidance_en: "Document instances of neglect (lack of food, school dropout, unsafe environment). Inform probation officers or call the NCPA helpline on 1929.",
           reporting_guidance_si: "නොසලකා හැරීම පිළිබඳ තොරතුරු (ආහාර නොලැබීම, පාසල් නොයැවීම) ලේඛනගත කරන්න. පරිවාස නිලධාරීන්ට හෝ 1929 අංකයට දැනුම් දෙන්න."
-        },
-        {
-          section: "14",
-          law_name: "National Child Protection Authority Act, No. 50 of 1998",
-          law_type: "supporting",
-          title: "Functions of the Authority",
-          title_en: "Functions of the Authority",
-          title_si: "අධිකාරියේ කාර්යයන්",
-          simple_explanation: "The NCPA is legally mandated to run the 1929 Child Helpline, receive child abuse reports, refer cases to police/probation, and monitor the progress of investigations.",
-          simple_explanation_en: "The NCPA is legally mandated to run the 1929 Child Helpline, receive child abuse reports, refer cases to police/probation, and monitor the progress of investigations.",
-          simple_explanation_si: "1929 ළමා උපකාරක අංකය ක්‍රියාත්මක කිරීමට, ළමා අපයෝජන වාර්තා භාර ගැනීමට, නඩු පොලිසියට/පරිවාසයට යොමු කිරීමට සහ විමර්ශනවල ප්‍රගතිය නිරීක්ෂණය කිරීමට NCPA නීත්‍යානුකූලව බැඳී සිටී.",
-          reporting_guidance: "All complaints submitted to the 1929 helpline are registered and processed under this section.",
-          reporting_guidance_en: "All complaints submitted to the 1929 helpline are registered and processed under this section.",
-          reporting_guidance_si: "1929 උපකාරක අංකයට ඉදිරිපත් කරන සියලුම පැමිණිලි මෙම වගන්තිය යටතේ ලියාපදිංචි කර ක්‍රියාත්මක කරනු ලැබේ."
         }
       ],
       roadmap: [
         "1. Identify Needs: Verify the immediate basic needs of the child (food, health).",
         "2. Inform Authorities: Contact the local Grama Niladhari or Probation Officer.",
-        "3. Report to NCPA: Call 1929 to register complaint under Section 14 to initiate family assessment.",
+        "3. Report to NCPA: Report to the NCPA to initiate child safety and family assessment.",
         "4. Rehabilitation Support: Connect the family with social welfare services.",
         "5. Safe Guardianship: If necessary, place the child in temporary child care home or foster care."
       ],
       roadmap_si: [
         "1. අවශ්‍යතා හඳුනා ගැනීම: දරුවාගේ මූලික අවශ්‍යතා (ආහාර, සෞඛ්‍ය) පිළිබඳව සොයා බලන්න.",
         "2. බලධාරීන් දැනුවත් කිරීම: ප්‍රාදේශීය ග්‍රාම නිලධාරී හෝ පරිවාස නිලධාරීවරයා දැනුවත් කරන්න.",
-        "3. NCPA ඇමතීම: පවුල් තත්ත්වය පරීක්ෂා කිරීම සඳහා 1929 අංකය අමතා 14 වගන්තිය යටතේ පැමිණිල්ලක් කරන්න.",
+        "3. NCPA ඇමතීම: දරුවාගේ ආරක්ෂාව සහ පවුල් තත්ත්වය පරීක්ෂා කිරීම සඳහා NCPA වෙත වාර්තා කරන්න.",
         "4. සුබසාධන සේවා: අදාළ පවුලට ආර්ථික හෝ සුබසාධන ආධාර ලබා දීමට මැදිහත් වන්න.",
         "5. ආරක්ෂිත රැකවරණය: අවශ්‍යතාවය පරිදි පරිවාස නියෝග මත දරුවාට තාවකාලික ආරක්ෂිත රැකවරණයක් සපයන්න."
       ]
@@ -234,34 +192,20 @@ function getMockLegalResult(description: string, language: "en" | "si"): LegalRe
           reporting_guidance: "Do not confront traffickers. Gather details about locations, vehicles, and suspect identities, and report directly to Police CID or 1929.",
           reporting_guidance_en: "Do not confront traffickers. Gather details about locations, vehicles, and suspect identities, and report directly to Police CID or 1929.",
           reporting_guidance_si: "ජාවාරම්කරුවන් සමඟ සෘජුව ගැටීමට නොයන්න. ස්ථාන, වාහන සහ සැකකරුවන් පිළිබඳ තොරතුරු රැස් කර වහාම පොලිස් CID අංශයට හෝ 1929ට වාර්තා කරන්න."
-        },
-        {
-          section: "14",
-          law_name: "National Child Protection Authority Act, No. 50 of 1998",
-          law_type: "supporting",
-          title: "Functions of the Authority",
-          title_en: "Functions of the Authority",
-          title_si: "අධිකාරියේ කාර්යයන්",
-          simple_explanation: "The NCPA is legally mandated to run the 1929 Child Helpline, receive child abuse reports, refer cases to police/probation, and monitor the progress of investigations.",
-          simple_explanation_en: "The NCPA is legally mandated to run the 1929 Child Helpline, receive child abuse reports, refer cases to police/probation, and monitor the progress of investigations.",
-          simple_explanation_si: "1929 ළමා උපකාරක අංකය ක්‍රියාත්මක කිරීමට, ළමා අපයෝජන වාර්තා භාර ගැනීමට, නඩු පොලිසියට/පරිවාසයට යොමු කිරීමට සහ විමර්ශනවල ප්‍රගතිය නිරීක්ෂණය කිරීමට NCPA නීත්‍යානුකූලව බැඳී සිටී.",
-          reporting_guidance: "All complaints submitted to the 1929 helpline are registered and processed under this section.",
-          reporting_guidance_en: "All complaints submitted to the 1929 helpline are registered and processed under this section.",
-          reporting_guidance_si: "1929 උපකාරක අංකයට ඉදිරිපත් කරන සියලුම පැමිණිලි මෙම වගන්තිය යටතේ ලියාපදිංචි කර ක්‍රියාත්මක කරනු ලැබේ."
         }
       ],
       roadmap: [
         "1. Safety First: Do not put yourself in danger; observe silently.",
         "2. Document Details: Record physical descriptions, locations, times and license plates.",
         "3. Police CID Call: Contact the Police Counter-Trafficking Unit or call 119.",
-        "4. NCPA Intervention: Inform NCPA on 1929 (Section 14) for rescue coordination.",
+        "4. NCPA Intervention: Inform NCPA on 1929 for rescue coordination.",
         "5. Protection Program: Place the rescued child under the state victim protection program."
       ],
       roadmap_si: [
         "1. ප්‍රවේශම් වන්න: අනතුරට ලක් නොවී රහසිගතව තොරතුරු නිරීක්ෂණය කරන්න.",
         "2. විස්තර සටහන් කිරීම: සැකකටයුතු පුද්ගලයන්, ස්ථාන, වේලාවන් සහ වාහන අංක සටහන් කර ගන්න.",
         "3. පොලිස් CID සම්බන්ධ කර ගැනීම: CID අපරාධ විමර්ශන අංශයට හෝ 119 අමතන්න.",
-        "4. NCPA මැදිහත්වීම: බේරාගැනීමේ මෙහෙයුම් සඳහා 1929 ළමා ආරක්ෂක අධිකාරිය (14 වගන්තිය යටතේ) දැනුවත් කරන්න.",
+        "4. NCPA මැදිහත්වීම: බේරාගැනීමේ මෙහෙයුම් සඳහා 1929 ළමා ආරක්ෂක අධිකාරිය දැනුවත් කරන්න.",
         "5. ආරක්ෂිත වැඩසටහන්: බේරාගත් දරුවා රජයේ වින්දිතයන් ආරක්ෂා කිරීමේ වැඩසටහනට යොමු කරන්න."
       ]
     },
@@ -301,14 +245,14 @@ function getMockLegalResult(description: string, language: "en" | "si"): LegalRe
       roadmap: [
         "1. Assess Risk: Determine if the child is in immediate risk.",
         "2. Consult Experts: Call 1929 anonymously to discuss the situation.",
-        "3. File Report: Submit a detailed report under Section 14 if child safety is violated.",
+        "3. File Report: Submit a detailed report to NCPA if child safety is violated.",
         "4. Monitor Situation: Follow up with local child welfare officers.",
         "5. Community Care: Ensure the child has access to support networks."
       ],
       roadmap_si: [
         "1. අවදානම තක්සේරු කිරීම: දරුවා ක්ෂණික අවදානමක සිටීදැයි පරීක්ෂා කරන්න.",
         "2. උපදෙස් ලබා ගැනීම: නම සඳහන් නොකර 1929 අමතා නීතිමය පසුබිම සාකච්ඡා කරන්න.",
-        "3. වාර්තා කිරීම: ළමා අයිතිවාසිකම් උල්ලංඝනය වී ඇත්නම් 14 වගන්තිය යටතේ නිල පැමිණිල්ලක් කරන්න.",
+        "3. වාර්තා කිරීම: ළමා අයිතිවාසිකම් උල්ලංඝනය වී ඇත්නම් NCPA වෙත නිල පැමිණිල්ලක් කරන්න.",
         "4. නිරීක්ෂණය: ප්‍රාදේශීය ළමා සුබසාධන නිලධාරීන් කටයුතු කරන ආකාරය සොයා බලන්න.",
         "5. ප්‍රජා සහාය: දරුවාට අවශ්‍ය සුදුසු සමාජීය රැකවරණය තහවුරු කරන්න."
       ]

@@ -137,26 +137,36 @@ export default function LegalGuidanceScreen() {
     setResult(null)
   }
 
-  const validateIncidentDescription = (text: string) => {
+  const validateIncidentDescription = (text: string, lang: "en" | "si") => {
     const trimmed = text.trim();
-    if (!trimmed) return uiText.validationError;
+    const errorMsg = lang === "si"
+      ? "කරුණාකර අර්ථවත් අපයෝජනයට අදාළ සිද්ධි විස්තරයක් ඇතුළත් කරන්න."
+      : "Please enter a meaningful abuse-related incident description.";
+
+    if (!trimmed) return errorMsg;
     
     // Basic length check (user friendly)
-    if (trimmed.length < 5) return uiText.validationError;
+    if (trimmed.length < 5) return errorMsg;
 
     // Gibberish: Repeated chars (e.g. "aaaaa")
     const repeatedCharPattern = /(.)\1{5,}/;
-    if (repeatedCharPattern.test(trimmed)) return uiText.validationError;
+    if (repeatedCharPattern.test(trimmed)) return errorMsg;
 
     // Word count: at least 2 words for minimal context
     const words = trimmed.split(/\s+/).filter(w => w.length >= 1);
-    if (words.length < 2) return uiText.validationError;
+    if (words.length < 2) return errorMsg;
 
     return null;
   };
 
   const handleSubmit = async () => {
-    const vError = validateIncidentDescription(description);
+    const isSinhala = /[\u0D80-\u0DFF]/.test(description);
+    const detectedLang = isSinhala ? "si" : "en";
+    
+    // Automatically switch the UI language to match the detected language of the description
+    setLanguage(detectedLang);
+
+    const vError = validateIncidentDescription(description, detectedLang);
     if (vError) {
       setValidationError(vError);
       setResult(null); // Clear previous result on validation error
@@ -170,7 +180,7 @@ export default function LegalGuidanceScreen() {
     try {
       const data = await queryLegalRAG({
         description,
-        language: language as "en" | "si",
+        language: detectedLang,
       })
       // If we got results, clear any previous error
       setError("")
@@ -220,7 +230,7 @@ export default function LegalGuidanceScreen() {
               style={[styles.langBtn, language === 'si' && styles.langBtnActive]}
               onPress={() => setLanguage('si')}
             >
-              <MaterialCommunityIcons name="translate" size={18} color={language === 'si' ? '#fff' : '#64748b'} />
+              <Text style={[styles.sinhalaLetterIcon, { color: language === 'si' ? '#fff' : '#64748b' }]}>සි</Text>
               <Text style={[styles.langBtnText, language === 'si' && styles.langBtnTextActive]}>{uiText.sinhala}</Text>
             </TouchableOpacity>
           </View>
@@ -660,6 +670,12 @@ const styles = StyleSheet.create({
   },
   langBtnTextActive: {
     color: '#fff',
+  },
+  sinhalaLetterIcon: {
+    fontSize: 16,
+    fontWeight: '800',
+    marginRight: 2,
+    lineHeight: 18,
   },
   aboutBtn: {
     flexDirection: 'row',
