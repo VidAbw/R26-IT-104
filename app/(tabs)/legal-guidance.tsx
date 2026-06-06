@@ -8,10 +8,11 @@ import {
   TouchableOpacity,
   View,
   useWindowDimensions,
-  Platform,
 } from "react-native"
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons"
-import { parseRoadmapSteps, queryLegalRAG, LegalResult } from "../../lib/legal"
+import { queryLegalRAG, LegalResult } from "../../lib/legal"
+import LegalDecisionRoadmap from "../../src/components/legal/LegalDecisionRoadmap"
+import { buildRoadmapResult, RoadmapResult } from "../../src/utils/legalRoadmapLogic"
 
 export default function LegalGuidanceScreen() {
   const { width } = useWindowDimensions()
@@ -23,13 +24,14 @@ export default function LegalGuidanceScreen() {
   const [error, setError] = useState("")
   const [validationError, setValidationError] = useState("")
   const [result, setResult] = useState<LegalResult | null>(null)
+  const [roadmapResult, setRoadmapResult] = useState<RoadmapResult | null>(null)
 
   const uiText = language === "si"
     ? {
         title: "Child Abuse Legal Guidance",
         subtitle: "Bilingual legal information & guidance for Sri Lanka | ද්විභාෂා නීති මාර්ගෝපදේශ",
         describeTitle: "සිදුවූ දේ විස්තර කරන්න",
-        describeSubtitle: "අදාළ නීතිමය මාර්ගෝපදේශ සොයා ගැනීමට සිද්ධියේ විස්තර බෙදා ගන්න.",
+        describeSubtitle: "අමාත්‍යංශ සහ පොලිස් මාර්ගෝපදේශ ලබා ගැනීමට සිද්ධියේ විස්තර බෙදා ගන්න.",
         placeholder: "සිදුවූ දේ පිළිබඳ විස්තරයක් ඇතුළත් කරන්න (උදා: මාර්ගගත අපයෝජනය, ශාරීරික හානිය, නොසලකා හැරීම, ආදිය)",
         privacyNotice: "ඔබේ තොරතුරු රහසිගත වන අතර මාර්ගෝපදේශ සැපයීම සඳහා පමණක් භාවිතා වේ.",
         clear: "මකන්න",
@@ -46,7 +48,7 @@ export default function LegalGuidanceScreen() {
         protectionGuidanceSubtitle: "පැමිණිලි කිරීම් සහ පරීක්ෂණ ක්‍රියා පටිපාටි පෙන්වන විධිවිධාන.",
         whatItMeans: "එයින් අදහස් කරන්නේ කුමක්ද:",
         reportingGuidance: "පැමිණිලි කිරීමේ උපදෙස්:",
-        decisionRoadmap: "ක්‍රියාමාර්ග සැලැස්ම",
+        decisionRoadmap: "තීරණ මාර්ගෝපදේශය",
         roadmapSubtitle: "ආරක්ෂිත සහ නිවැරදි ක්‍රියාමාර්ග ගැනීමට මෙම පියවර අනුගමනය කරන්න.",
         legalDisclaimer: "මෙම තොරතුරු මාර්ගෝපදේශ සඳහා පමණක් වන අතර වෘත්තීය නීති උපදෙස් සඳහා ආදේශකයක් නොවේ.",
         importantContacts: "වැදගත් සම්බන්ධතා",
@@ -72,7 +74,7 @@ export default function LegalGuidanceScreen() {
           "sexual abuse": "ලිංගික අපයෝජනය",
           "neglect": "නොසලකා හැරීම",
           "trafficking": "ජාවාරම",
-          "digital abuse": "ඩිජිටල් අපයෝජනය",
+          "digital abuse": "ඩිජिटल අපයෝජනය",
           "emotional abuse": "මානසික අපයෝජනය",
           "general abuse": "සාමාන්‍ය අපයෝජනය"
         }
@@ -135,6 +137,7 @@ export default function LegalGuidanceScreen() {
     setError("")
     setValidationError("")
     setResult(null)
+    setRoadmapResult(null)
   }
 
   const validateIncidentDescription = (text: string, lang: "en" | "si") => {
@@ -144,15 +147,11 @@ export default function LegalGuidanceScreen() {
       : "Please enter a meaningful abuse-related incident description.";
 
     if (!trimmed) return errorMsg;
-    
-    // Basic length check (user friendly)
     if (trimmed.length < 5) return errorMsg;
 
-    // Gibberish: Repeated chars (e.g. "aaaaa")
     const repeatedCharPattern = /(.)\1{5,}/;
     if (repeatedCharPattern.test(trimmed)) return errorMsg;
 
-    // Word count: at least 2 words for minimal context
     const words = trimmed.split(/\s+/).filter(w => w.length >= 1);
     if (words.length < 2) return errorMsg;
 
@@ -163,45 +162,38 @@ export default function LegalGuidanceScreen() {
     const isSinhala = /[\u0D80-\u0DFF]/.test(description);
     const detectedLang = isSinhala ? "si" : "en";
     
-    // Automatically switch the UI language to match the detected language of the description
     setLanguage(detectedLang);
 
     const vError = validateIncidentDescription(description, detectedLang);
     if (vError) {
       setValidationError(vError);
-      setResult(null); // Clear previous result on validation error
+      setResult(null);
+      setRoadmapResult(null);
       return;
     }
 
     setLoading(true)
     setError("")
     setValidationError("")
-    setResult(null) // Clear previous result before new search
+    setResult(null)
+    setRoadmapResult(null)
     try {
+      const roadmapData = buildRoadmapResult(description, detectedLang);
+      setRoadmapResult(roadmapData);
+
       const data = await queryLegalRAG({
         description,
         language: detectedLang,
       })
-      // If we got results, clear any previous error
       setError("")
       setResult(data)
     } catch (err: any) {
       setError(err.message || "Something went wrong")
-      setResult(null) // Clear results on error to avoid stale data
+      setResult(null)
+      setRoadmapResult(null)
     } finally {
       setLoading(false)
     }
-  }
-
-  const RoadmapStepIcon = ({ index }: { index: number }) => {
-    const icons = [
-      <Ionicons name="chatbubble-ellipses-outline" size={24} color="#3b82f6" />,
-      <Ionicons name="call-outline" size={24} color="#8b5cf6" />,
-      <Ionicons name="shield-checkmark-outline" size={24} color="#10b981" />,
-      <Ionicons name="folder-open-outline" size={24} color="#f59e0b" />,
-      <Ionicons name="people-outline" size={24} color="#ef4444" />,
-    ]
-    return icons[index] || <Ionicons name="ellipse-outline" size={24} color="#64748b" />
   }
 
   return (
@@ -417,6 +409,24 @@ export default function LegalGuidanceScreen() {
                              law.reporting_guidance}
                           </Text>
                         </View>
+
+                        {law.related_provisions && law.related_provisions.length > 0 && (
+                          <View style={styles.relatedContainer}>
+                            <Text style={styles.relatedHeader}>
+                              {language === 'si' ? "අදාළ වෙනත් වගන්ති" : "Related Provisions"} ({law.related_provisions.length})
+                            </Text>
+                            {law.related_provisions.map((subLaw, subIdx) => (
+                              <View key={`sub-${subIdx}`} style={styles.relatedItem}>
+                                <Text style={styles.relatedTitle}>
+                                  {subLaw.law_name ? `${subLaw.law_name} - ` : ""}{uiText.section} {subLaw.section}: {language === 'si' && subLaw.title_si ? subLaw.title_si : (subLaw.title_en || subLaw.title)}
+                                </Text>
+                                <Text style={styles.relatedDesc}>
+                                  {language === 'si' && subLaw.simple_explanation_si ? subLaw.simple_explanation_si : (subLaw.simple_explanation_en || subLaw.simple_explanation)}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
                       </View>
                     </View>
                   ))}
@@ -466,6 +476,24 @@ export default function LegalGuidanceScreen() {
                              law.reporting_guidance}
                           </Text>
                         </View>
+
+                        {law.related_provisions && law.related_provisions.length > 0 && (
+                          <View style={[styles.relatedContainer, { borderTopColor: '#ccfbf1' }]}>
+                            <Text style={[styles.relatedHeader, { color: '#0f766e' }]}>
+                              {language === 'si' ? "අදාළ වෙනත් වගන්ති" : "Related Provisions"} ({law.related_provisions.length})
+                            </Text>
+                            {law.related_provisions.map((subLaw, subIdx) => (
+                              <View key={`sub-${subIdx}`} style={[styles.relatedItem, { borderLeftColor: '#0f766e' }]}>
+                                <Text style={[styles.relatedTitle, { color: '#115e59' }]}>
+                                  {subLaw.law_name ? `${subLaw.law_name} - ` : ""}{uiText.section} {subLaw.section}: {language === 'si' && subLaw.title_si ? subLaw.title_si : (subLaw.title_en || subLaw.title)}
+                                </Text>
+                                <Text style={styles.relatedDesc}>
+                                  {language === 'si' && subLaw.simple_explanation_si ? subLaw.simple_explanation_si : (subLaw.simple_explanation_en || subLaw.simple_explanation)}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
                       </View>
                     </View>
                   ))}
@@ -478,50 +506,9 @@ export default function LegalGuidanceScreen() {
             </View>
           </View>
 
-          {/* Right Column: Roadmap */}
+          {/* Right Column: Custom Interactive Decision Roadmap */}
           <View style={[styles.gridColumn, isDesktop && { flex: 0.8, marginLeft: 24 }]}>
-            <View style={styles.roadmapCard}>
-              <View style={styles.sectionHeader}>
-                <View style={[styles.sectionHeaderIcon, { backgroundColor: '#eff6ff' }]}>
-                  <Ionicons name="map-outline" size={20} color="#2563eb" />
-                </View>
-                <View>
-                  <Text style={styles.sectionTitle}>{uiText.decisionRoadmap}</Text>
-                  <Text style={styles.sectionSubtitle}>{uiText.roadmapSubtitle}</Text>
-                </View>
-              </View>
-
-              <View style={styles.roadmapTimeline}>
-                {(language === 'si' && result.decision_roadmap_si ? parseRoadmapSteps(result.decision_roadmap_si) :
-                  language === 'en' && result.decision_roadmap_en ? parseRoadmapSteps(result.decision_roadmap_en) :
-                  parseRoadmapSteps(result.decision_roadmap)).map((step, idx) => (
-                  <View key={idx} style={styles.roadmapItem}>
-                    <View style={styles.roadmapLeft}>
-                      <View style={styles.stepCircle}>
-                        <Text style={styles.stepCircleText}>{idx + 1}</Text>
-                      </View>
-                      {idx < 4 && <View style={styles.timelineConnector} />}
-                    </View>
-                    <View style={styles.roadmapContent}>
-                      <View style={styles.roadmapIconBox}>
-                        <RoadmapStepIcon index={idx} />
-                      </View>
-                      <View style={styles.roadmapTextBox}>
-                        {step.title ? <Text style={styles.roadmapStepTitle}>{step.title}</Text> : null}
-                        <Text style={styles.roadmapStepDesc}>{step.description}</Text>
-                      </View>
-                    </View>
-                  </View>
-                ))}
-              </View>
-
-              <View style={styles.roadmapFooter}>
-                <View style={styles.roadmapFooterIcon}>
-                  <Ionicons name="heart-half-outline" size={24} color="#2563eb" />
-                </View>
-                <Text style={styles.roadmapFooterText}>Your action can create a safer future for a child.</Text>
-              </View>
-            </View>
+            <LegalDecisionRoadmap result={roadmapResult} language={language as "en" | "si"} />
           </View>
         </View>
       )}
@@ -1004,113 +991,6 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontStyle: 'italic',
   },
-  roadmapCard: {
-    backgroundColor: '#fff',
-    borderRadius: 24,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.05,
-    shadowRadius: 20,
-    elevation: 4,
-  },
-  roadmapTimeline: {
-    marginTop: 10,
-    paddingLeft: 4,
-  },
-  roadmapItem: {
-    flexDirection: 'row',
-    marginBottom: 24,
-  },
-  roadmapLeft: {
-    alignItems: 'center',
-    width: 24,
-    marginRight: 16,
-  },
-  stepCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#2563eb',
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 2,
-  },
-  stepCircleText: {
-    fontSize: 12,
-    fontWeight: '800',
-    color: '#2563eb',
-  },
-  timelineConnector: {
-    width: 2,
-    flex: 1,
-    backgroundColor: '#e2e8f0',
-    marginVertical: 4,
-  },
-  roadmapContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    padding: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
-    backgroundColor: '#fff',
-  },
-  roadmapIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: '#f8fafc',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#f1f5f9',
-  },
-  roadmapTextBox: {
-    flex: 1,
-  },
-  roadmapStepTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1e3a8a',
-    marginBottom: 2,
-  },
-  roadmapStepDesc: {
-    fontSize: 13,
-    color: '#64748b',
-    lineHeight: 18,
-  },
-  roadmapFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginTop: 8,
-    padding: 16,
-    backgroundColor: '#eff6ff',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#dbeafe',
-  },
-  roadmapFooterIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  roadmapFooterText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#1e40af',
-  },
   footerRow: {
     gap: 24,
     marginBottom: 40,
@@ -1289,6 +1169,38 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0fdfa',
     borderColor: '#e2e8f0',
     borderWidth: 1,
+  },
+  relatedContainer: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#eff6ff',
+  },
+  relatedHeader: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#2563eb',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  relatedItem: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#2563eb',
+  },
+  relatedTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 4,
+  },
+  relatedDesc: {
+    fontSize: 12,
+    color: '#475569',
+    lineHeight: 18,
   }
 })
-

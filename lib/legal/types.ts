@@ -19,6 +19,7 @@ export interface LegalLaw {
   reporting_guidance_en?: string;
   reporting_guidance_si?: string;
   relevance_score?: number;
+  related_provisions?: LegalLaw[];
 }
 
 export interface LegalResult {
