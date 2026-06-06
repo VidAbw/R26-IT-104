@@ -9,15 +9,20 @@ const InitialLayout = () => {
   const segments = useSegments();
   const router = useRouter();
 
+  // Set this to true to bypass authentication during development/testing
+  const BYPASS_AUTH = true;
+
   useEffect(() => {
     if (isLoading) return;
+    if (BYPASS_AUTH) return;
 
-    // If NOT logged in, kick them to Login Page
-    if (!session) {
+    const inAuthGroup = segments[0] === "login" || segments[0] === "register";
+
+    if (!session && !inAuthGroup) {
+      // If NOT logged in and NOT on an auth page, go to Login
       router.replace("/login");
-    }
-    // If logged in, kick them to Home Page (index)
-    else if (session && segments[0] === "login") {
+    } else if (session && inAuthGroup) {
+      // If logged in and on an auth page, go to Home
       router.replace("/");
     }
   }, [session, isLoading, router, segments]);
