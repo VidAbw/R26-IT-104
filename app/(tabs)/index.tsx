@@ -13,12 +13,14 @@ import {
 } from "react-native";
 import { Image } from "expo-image";
 import { Audio } from "expo-av";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "../../lib/supabase";
+import LegalGuidanceScreen from "./legal-guidance";
 
 // Default Fallback IP
 const DEFAULT_API_URL = Platform.OS === "web" ? "http://127.0.0.1:8000" : "http://192.168.1.72:8000";
 
-type TabType = "status" | "register" | "nanny_cam";
+type TabType = "status" | "register" | "nanny_cam" | "legal_guidance";
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState<TabType>("status");
@@ -26,13 +28,33 @@ export default function Dashboard() {
   const [isEditingIp, setIsEditingIp] = useState(false);
   const [tempIp, setTempIp] = useState(apiBaseUrl);
 
+  useEffect(() => {
+    const loadSavedIp = async () => {
+      try {
+        const savedIp = await AsyncStorage.getItem("child-safety-api-url");
+        if (savedIp) {
+          setApiBaseUrl(savedIp);
+          setTempIp(savedIp);
+        }
+      } catch (err) {
+        console.error("Failed to load API URL", err);
+      }
+    };
+    loadSavedIp();
+  }, []);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
 
-  const saveIp = () => {
+  const saveIp = async () => {
     setApiBaseUrl(tempIp);
     setIsEditingIp(false);
+    try {
+      await AsyncStorage.setItem("child-safety-api-url", tempIp);
+    } catch (err) {
+      console.error("Failed to save API URL", err);
+    }
   };
 
   return (
@@ -117,6 +139,22 @@ export default function Dashboard() {
             Nanny Cam
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.tabButton,
+            activeTab === "legal_guidance" && styles.activeTab,
+          ]}
+          onPress={() => setActiveTab("legal_guidance")}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              activeTab === "legal_guidance" && styles.activeTabText,
+            ]}
+          >
+            Legal Guidance
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Content */}
@@ -124,6 +162,7 @@ export default function Dashboard() {
         {activeTab === "status" && <StatusAndAlertsTab apiBaseUrl={apiBaseUrl} />}
         {activeTab === "register" && <RegisterVoiceTab apiBaseUrl={apiBaseUrl} />}
         {activeTab === "nanny_cam" && <NannyCamTab apiBaseUrl={apiBaseUrl} />}
+        {activeTab === "legal_guidance" && <LegalGuidanceScreen />}
       </View>
     </View>
   );
@@ -136,6 +175,7 @@ function StatusAndAlertsTab({ apiBaseUrl }: { apiBaseUrl: string }) {
   const [parentName, setParentName] = useState<string>("");
   const [alerts, setAlerts] = useState<any[]>([]);
   const [prediction, setPrediction] = useState<string>("");
+  const [isRecording, setIsRecording] = useState<boolean>(false);
   const recordingRef = useRef<Audio.Recording | null>(null);
 
   useEffect(() => {
@@ -393,7 +433,7 @@ function RegisterVoiceTab({ apiBaseUrl }: { apiBaseUrl: string }) {
   const [armCountdown, setArmCountdown] = useState(0);
 
   const recordingRef = useRef<Audio.Recording | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<any>(null);
 
   useEffect(() => { fetchProfiles(); }, []);
 
@@ -677,7 +717,7 @@ function NannyCamTab({ apiBaseUrl }: { apiBaseUrl: string }) {
   const [frameTick, setFrameTick] = useState(Date.now());
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: any;
     if (cameraStatus === "Running") {
       // Poll for a new frame every 150ms (approx 6-7 FPS)
       interval = setInterval(() => {

@@ -15,6 +15,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    // Custom lock function to bypass buggy web locks that throw "signal is aborted without reason"
+    lock: async (name, acquireTimeout, fn) => fn(),
   },
 });
 
