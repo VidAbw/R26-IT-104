@@ -1,6 +1,7 @@
 import { ChildrenSection } from "@/components/profile/children-section";
 import { ProfileHeader } from "@/components/profile/profile-header";
 import { SettingsSection } from "@/components/profile/settings-section";
+import { KnownFacesSection } from "@/components/profile/known-faces-section";
 import { useAuth } from "@/contexts/AuthProvider";
 import { loadParentProfile, saveParentProfile } from "@/lib/profile-store";
 import { ChildProfile, ParentProfile } from "@/types/profile";
@@ -137,6 +138,8 @@ export default function Profile() {
           onChangeName={updateDisplayName}
           onChangePhotoUri={updatePhotoUri}
         />
+
+        <KnownFacesSection />
 
         <SettingsSection
           settings={profile.settings}
