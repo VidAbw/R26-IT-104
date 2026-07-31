@@ -39,7 +39,11 @@ const InitialLayout = () => {
   useEffect(() => {
     if (isLoading) return;
 
-    const inAuthGroup = segments[0] === "login" || segments[0] === "register";
+    const inAuthGroup =
+      segments[0] === "login" ||
+      segments[0] === "register" ||
+      segments[0] === "forgot-password" ||
+      segments[0] === "verify-email";
 
     // If NOT logged in, and NOT on an auth screen, kick to login
     if (!session && !inAuthGroup) {

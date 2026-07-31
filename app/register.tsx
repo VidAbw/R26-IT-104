@@ -91,11 +91,11 @@ export default function RegisterScreen() {
 
     setLoading(false);
 
-    Alert.alert(
-      "Welcome to Child Safety Guardian! 🎉",
-      `Account created for ${displayName}. Please log in.`,
-      [{ text: "Go to Login", onPress: () => router.replace("/login") }]
-    );
+    // Navigate to the email verification screen
+    router.replace({
+      pathname: "/verify-email",
+      params: { email: email.trim().toLowerCase() },
+    });
   }
 
   return (
