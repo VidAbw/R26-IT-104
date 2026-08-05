@@ -801,19 +801,220 @@ function RegisterVoiceTab({ apiBaseUrl }: { apiBaseUrl: string }) {
 // --- TAB 3: NANNY CAM TAB ---
 // ==========================================
 function NannyCamTab({ apiBaseUrl }: { apiBaseUrl: string }) {
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [cameraStatus, setCameraStatus] = useState<string>("Stopped");
+  const [streamUrl, setStreamUrl] = useState<string | null>(null);
+  const [frameTick, setFrameTick] = useState(Date.now());
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    if (cameraStatus === "Running") {
+      interval = setInterval(() => {
+        setFrameTick(Date.now());
+      }, 150);
+    }
+    return () => clearInterval(interval);
+  }, [cameraStatus]);
+
+  useEffect(() => {
+    fetchAlerts();
+    const subscription = supabase
+      .channel("nanny_cam_alerts")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "alerts",
+        },
+        () => fetchAlerts()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, []);
+
+  const fetchAlerts = async () => {
+    const { data, error } = await supabase
+      .from("alerts")
+      .select("*")
+      .order("timestamp", { ascending: false })
+      .limit(10);
+
+    if (data && !error) setAlerts(data);
+  };
+
+  const startCamera = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(`${apiBaseUrl}/api/iot/start`, { method: "POST" });
+      if (res.ok) {
+        setCameraStatus("Running");
+        setStreamUrl(`${apiBaseUrl}/api/iot/stream`);
+      } else {
+        Alert.alert("Error", "Failed to start Nanny Cam. Check if webcam or ESP32-CAM is connected.");
+      }
+    } catch (e) {
+      Alert.alert("Error", "Network error starting Nanny Cam. Server at " + apiBaseUrl + " could not be reached.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const stopCamera = async () => {
+    try {
+      setIsLoading(true);
+      const res = await fetch(`${apiBaseUrl}/api/iot/stop`, { method: "POST" });
+      if (res.ok) {
+        setCameraStatus("Stopped");
+        setStreamUrl(null);
+      } else {
+        Alert.alert("Error", "Failed to stop Nanny Cam.");
+      }
+    } catch (e) {
+      Alert.alert("Error", "Network error stopping Nanny Cam.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const triggerTestAlert = async () => {
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/iot/alert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: "test-user-id",
+          source: "nanny_cam",
+          type: "hazard",
+          probability: 0.95,
+          timestamp: new Date().toISOString(),
+          details: { triggered_by: ["Test Hazard Alert"] }
+        }),
+      });
+      if (res.ok) {
+        Alert.alert("Success", "Test hazard alert sent!");
+        fetchAlerts();
+      } else {
+        Alert.alert("Error", "Failed to trigger test alert.");
+      }
+    } catch (e) {
+      Alert.alert("Error", "Network error sending test alert.");
+    }
+  };
+
   return (
     <View style={styles.tabCard}>
-      <Text style={styles.tabCardTitle}>Nanny Camera Stream</Text>
-      <Text style={styles.tabCardSub}>
-        Monitor your home or child's nursery via live video stream.
-      </Text>
+      <View style={styles.cardTitleRow}>
+        <View>
+          <Text style={styles.tabCardTitle}>Nanny Camera Stream & Controls</Text>
+          <Text style={styles.tabCardSub}>
+            Monitor your home or child's nursery via live webcam or ESP32-CAM stream.
+          </Text>
+        </View>
+        <View style={styles.camStatusBadgeContainer}>
+          <View style={[styles.statusDot, { backgroundColor: cameraStatus === "Running" ? "#16A34A" : "#DC2626" }]} />
+          <Text style={[styles.camStatusText, { color: cameraStatus === "Running" ? "#16A34A" : "#DC2626" }]}>
+            {cameraStatus === "Running" ? "Stream Active" : "Camera Offline"}
+          </Text>
+        </View>
+      </View>
 
-      <View style={styles.cameraPlaceholderBox}>
-        <Ionicons name="videocam-off-outline" size={48} color={ProtectivaTheme.textSecondary} />
-        <Text style={styles.camOfflineText}>Camera Stream Offline</Text>
-        <Text style={styles.camOfflineSub}>
-          Connect an IP Camera or ESP32-CAM module at {apiBaseUrl} to begin live streaming.
+      {/* Control Buttons Bar */}
+      <View style={styles.camControlsRow}>
+        <TouchableOpacity
+          style={[styles.primaryActionBtn, styles.btnStartCam, isLoading && { opacity: 0.6 }]}
+          onPress={startCamera}
+          disabled={isLoading || cameraStatus === "Running"}
+        >
+          <Ionicons name="videocam-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Text style={styles.primaryActionBtnText}>
+            {cameraStatus === "Running" ? "Webcam Running" : "Start Web Cam"}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.primaryActionBtn, styles.btnStopCam, isLoading && { opacity: 0.6 }]}
+          onPress={stopCamera}
+          disabled={isLoading || cameraStatus !== "Running"}
+        >
+          <Ionicons name="stop-circle-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Text style={styles.primaryActionBtnText}>Stop Web Cam</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.primaryActionBtn, styles.btnTestAlert]}
+          onPress={triggerTestAlert}
+        >
+          <Ionicons name="warning-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Text style={styles.primaryActionBtnText}>Test Hazard Alert</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Video Viewport Container */}
+      <View style={styles.camViewportBox}>
+        {cameraStatus === "Running" && streamUrl ? (
+          <Image
+            source={{ uri: `${streamUrl}?t=${frameTick}` }}
+            style={styles.camStreamImage}
+            contentFit="cover"
+            cachePolicy="none"
+          />
+        ) : (
+          <View style={styles.camOfflinePlaceholder}>
+            <View style={styles.camIconCircle}>
+              <Ionicons name="videocam-off-outline" size={40} color={ProtectivaTheme.textSecondary} />
+            </View>
+            <Text style={styles.camOfflineText}>Camera Stream is Stopped</Text>
+            <Text style={styles.camOfflineSub}>
+              Click "Start Web Cam" above to connect to local webcam / ESP32-CAM at {apiBaseUrl}.
+            </Text>
+            <TouchableOpacity style={styles.btnStartCamBig} onPress={startCamera}>
+              <Ionicons name="play-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Text style={styles.btnStartCamBigText}>Start Web Cam Stream</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
+      {/* Nanny Cam Alerts Log */}
+      <View style={{ marginTop: 24 }}>
+        <Text style={styles.sectionTitle}>Camera Hazard Alerts</Text>
+        <Text style={styles.sectionSubtitle}>
+          Real-time hazard detections from visual stream analysis.
         </Text>
+
+        <View style={{ marginTop: 12 }}>
+          {alerts.length === 0 ? (
+            <View style={styles.emptyAlertsBox}>
+              <Ionicons name="shield-checkmark-outline" size={32} color={ProtectivaTheme.primary} />
+              <Text style={styles.noAlertsTitle}>No Camera Hazards Detected</Text>
+              <Text style={styles.noAlertsSub}>Nanny camera feed is secure.</Text>
+            </View>
+          ) : (
+            alerts.map((alert, idx) => (
+              <View key={alert.id || idx} style={styles.recentAlertRow}>
+                <Ionicons name="warning-outline" size={20} color="#DC2626" style={{ marginRight: 10 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.alertRowTitle}>
+                    Hazard Alert ({((alert.probability || 0.9) * 100).toFixed(0)}% Confidence)
+                  </Text>
+                  <Text style={styles.alertRowTime}>
+                    {new Date(alert.timestamp || alert.created_at).toLocaleString()}
+                  </Text>
+                  {alert.details?.triggered_by && (
+                    <Text style={{ fontSize: 11, color: ProtectivaTheme.textSecondary, marginTop: 2 }}>
+                      Triggered by: {alert.details.triggered_by.join(", ")}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            ))
+          )}
+        </View>
       </View>
     </View>
   );
@@ -1452,6 +1653,91 @@ const styles = StyleSheet.create({
   },
   tabBarLabelActive: {
     color: ProtectivaTheme.primaryDark,
+    fontWeight: '700',
+  },
+
+  // Nanny Cam Controls & Stream
+  camStatusBadgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  camStatusText: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 6,
+  },
+  camControlsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginVertical: 14,
+    flexWrap: 'wrap',
+  },
+  btnStartCam: {
+    backgroundColor: ProtectivaTheme.primaryDark,
+    flexDirection: 'row',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  btnStopCam: {
+    backgroundColor: '#DC2626',
+    flexDirection: 'row',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  btnTestAlert: {
+    backgroundColor: '#EA580C',
+    flexDirection: 'row',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  camViewportBox: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+    maxHeight: 400,
+    backgroundColor: '#0F172A',
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  camStreamImage: {
+    width: '100%',
+    height: '100%',
+  },
+  camOfflinePlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    backgroundColor: '#F8FAFC',
+  },
+  camIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#E6F4F1',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  btnStartCamBig: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: ProtectivaTheme.primaryDark,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+    marginTop: 14,
+  },
+  btnStartCamBigText: {
+    color: '#FFFFFF',
+    fontSize: 14,
     fontWeight: '700',
   },
 });
