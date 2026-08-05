@@ -7,8 +7,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Animated,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AlertLog } from '../types/alerts';
@@ -84,7 +82,7 @@ export const EmergencyAlertModal: React.FC<EmergencyAlertModalProps> = ({
             {/* Badges Row */}
             <View style={styles.badgeRow}>
               <View style={styles.confidenceBadge}>
-                <Ionicons name="shield-alert" size={16} color="#FFFFFF" />
+                <Ionicons name="shield-half-outline" size={16} color="#FFFFFF" />
                 <Text style={styles.confidenceText}>{confidencePercent}% Confidence</Text>
               </View>
               <View style={styles.timeBadge}>

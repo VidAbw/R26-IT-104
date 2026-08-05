@@ -12,8 +12,8 @@ import {
   View,
   Alert,
 } from "react-native";
-import { supabase } from "../lib/supabase";
 import { useRouter } from "expo-router";
+import { supabaseAuthService } from "../services/supabaseAuthService";
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState("");
@@ -37,11 +37,7 @@ export default function ForgotPasswordScreen() {
 
     setLoading(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
-      // Supabase will redirect here after the user clicks the link in their email.
-      // For mobile deep linking, you would configure this in your Supabase dashboard.
-      redirectTo: "childsafetyapp://reset-password",
-    });
+    const { error } = await supabaseAuthService.sendPasswordResetEmail(trimmedEmail);
 
     setLoading(false);
 
@@ -58,73 +54,70 @@ export default function ForgotPasswordScreen() {
     return (
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <ScrollView
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.successIconContainer}>
-            <Text style={styles.successIcon}>✉️</Text>
+        <ScrollView contentContainerStyle={styles.container}>
+          <View style={styles.card}>
+            {/* Header Icon */}
+            <View style={styles.iconContainer}>
+              <Text style={styles.iconText}>✉️</Text>
+            </View>
+
+            <Text style={styles.title}>Check Your Email</Text>
+
+            <Text style={styles.subtitle}>
+              We sent a password reset link to:
+            </Text>
+
+            <View style={styles.emailBadge}>
+              <Text style={styles.emailBadgeText}>{email}</Text>
+            </View>
+
+            {/* Instruction Steps */}
+            <View style={styles.stepsContainer}>
+              <View style={styles.stepItem}>
+                <View style={styles.stepNumber}>
+                  <Text style={styles.stepNumberText}>1</Text>
+                </View>
+                <Text style={styles.stepText}>
+                  Open the email on your mobile device.
+                </Text>
+              </View>
+
+              <View style={styles.stepItem}>
+                <View style={styles.stepNumber}>
+                  <Text style={styles.stepNumberText}>2</Text>
+                </View>
+                <Text style={styles.stepText}>
+                  Tap the reset password link or button inside the message.
+                </Text>
+              </View>
+
+              <View style={styles.stepItem}>
+                <View style={styles.stepNumber}>
+                  <Text style={styles.stepNumberText}>3</Text>
+                </View>
+                <Text style={styles.stepText}>
+                  You'll be directed back into the app to set your new password.
+                </Text>
+              </View>
+            </View>
+
+            {/* Actions */}
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={() => setSent(false)}
+            >
+              <Text style={styles.primaryButtonText}>Resend Reset Link</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => router.replace("/login")}
+            >
+              <Text style={styles.secondaryButtonText}>Back to Sign In</Text>
+            </TouchableOpacity>
           </View>
-
-          <Text style={styles.title}>Check Your Email</Text>
-          <Text style={styles.subtitle}>
-            We've sent a password reset link to:
-          </Text>
-          <Text style={styles.emailHighlight}>{email.trim().toLowerCase()}</Text>
-
-          <View style={styles.instructionCard}>
-            <Text style={styles.instructionTitle}>What to do next:</Text>
-
-            <View style={styles.stepRow}>
-              <View style={styles.stepBadge}>
-                <Text style={styles.stepNumber}>1</Text>
-              </View>
-              <Text style={styles.stepText}>
-                Open your email app and find the message from Supabase
-              </Text>
-            </View>
-
-            <View style={styles.stepRow}>
-              <View style={styles.stepBadge}>
-                <Text style={styles.stepNumber}>2</Text>
-              </View>
-              <Text style={styles.stepText}>
-                Click the "Reset Password" link in the email
-              </Text>
-            </View>
-
-            <View style={styles.stepRow}>
-              <View style={styles.stepBadge}>
-                <Text style={styles.stepNumber}>3</Text>
-              </View>
-              <Text style={styles.stepText}>
-                Set your new password and log back in
-              </Text>
-            </View>
-          </View>
-
-          <Text style={styles.spamNote}>
-            Didn't receive the email? Check your spam folder or try again.
-          </Text>
-
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={() => {
-              setSent(false);
-              setEmail("");
-            }}
-          >
-            <Text style={styles.secondaryButtonText}>Try a Different Email</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.backLink}
-            onPress={() => router.replace("/login")}
-          >
-            <Text style={styles.backLinkText}>← Back to Login</Text>
-          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     );
@@ -134,52 +127,52 @@ export default function ForgotPasswordScreen() {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.headerIconContainer}>
-          <Text style={styles.headerIcon}>🔒</Text>
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.card}>
+          <Text style={styles.title}>Forgot Password?</Text>
+
+          <Text style={styles.subtitle}>
+            Enter the email address associated with your Child Safety Guardian
+            account. We will send you a link to reset your password.
+          </Text>
+
+          {/* Email Input */}
+          <Text style={styles.label}>Email Address</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. parent@example.com"
+            placeholderTextColor="#9CA3AF"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={email}
+            onChangeText={setEmail}
+          />
+
+          {/* Submit Button */}
+          <TouchableOpacity
+            style={[styles.primaryButton, loading && styles.buttonDisabled]}
+            onPress={handleResetPassword}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Send Reset Link</Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Back to Login */}
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => router.replace("/login")}
+            disabled={loading}
+          >
+            <Text style={styles.secondaryButtonText}>Back to Sign In</Text>
+          </TouchableOpacity>
         </View>
-
-        <Text style={styles.title}>Forgot Password?</Text>
-        <Text style={styles.subtitle}>
-          No worries! Enter your email address below and we'll send you a link
-          to reset your password.
-        </Text>
-
-        <Text style={styles.inputLabel}>Email Address</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. parent@gmail.com"
-          placeholderTextColor="#9CA3AF"
-          onChangeText={setEmail}
-          value={email}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          autoFocus
-        />
-
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleResetPassword}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <Text style={styles.buttonText}>Send Reset Link</Text>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.backLink}
-          onPress={() => router.replace("/login")}
-        >
-          <Text style={styles.backLinkText}>← Back to Login</Text>
-        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -188,156 +181,134 @@ export default function ForgotPasswordScreen() {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
+    backgroundColor: "#F9FAFB",
     justifyContent: "center",
     padding: 24,
-    backgroundColor: "#F9FAFB",
   },
-
-  // ── Header Icons ──────────────────────────────────────────
-  headerIconContainer: {
+  card: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 28,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  iconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#EEF2FF",
+    justifyContent: "center",
     alignItems: "center",
+    alignSelf: "center",
     marginBottom: 16,
   },
-  headerIcon: {
-    fontSize: 56,
-  },
-  successIconContainer: {
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  successIcon: {
-    fontSize: 56,
-  },
-
-  // ── Typography ────────────────────────────────────────────
-  title: {
+  iconText: {
     fontSize: 28,
+  },
+  title: {
+    fontSize: 24,
     fontWeight: "800",
     color: "#111827",
     textAlign: "center",
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: 14,
     color: "#6B7280",
     textAlign: "center",
-    marginBottom: 30,
-    marginTop: 8,
-    lineHeight: 22,
-    paddingHorizontal: 10,
+    lineHeight: 20,
+    marginBottom: 20,
   },
-  emailHighlight: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#3B82F6",
-    textAlign: "center",
+  emailBadge: {
+    backgroundColor: "#EEF2FF",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignSelf: "center",
     marginBottom: 24,
   },
-
-  // ── Input ─────────────────────────────────────────────────
-  inputLabel: {
+  emailBadgeText: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#4F46E5",
+  },
+  stepsContainer: {
+    gap: 16,
+    marginBottom: 28,
+  },
+  stepItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  stepNumber: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#4F46E5",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  stepNumberText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  stepText: {
     fontSize: 14,
-    fontWeight: "600",
+    color: "#374151",
+    flex: 1,
+    lineHeight: 18,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: "700",
     color: "#374151",
     marginBottom: 6,
   },
   input: {
-    height: 50,
-    borderColor: "#D1D5DB",
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    fontSize: 15,
-    backgroundColor: "#FFF",
-    color: "#111827",
-  },
-
-  // ── Buttons ───────────────────────────────────────────────
-  button: {
-    backgroundColor: "#3B82F6",
-    paddingVertical: 15,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 24,
-  },
-  buttonDisabled: {
-    backgroundColor: "#93C5FD",
-  },
-  buttonText: {
-    color: "#FFF",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  secondaryButton: {
-    backgroundColor: "#EFF6FF",
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
-  },
-  secondaryButtonText: {
-    color: "#3B82F6",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-
-  // ── Instruction Card (Success State) ──────────────────────
-  instructionCard: {
-    backgroundColor: "#FFF",
+    backgroundColor: "#F3F4F6",
     borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    fontSize: 15,
+    color: "#111827",
     borderWidth: 1,
     borderColor: "#E5E7EB",
+    marginBottom: 20,
   },
-  instructionTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#374151",
-    marginBottom: 16,
-  },
-  stepRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 14,
-  },
-  stepBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: "#3B82F6",
-    justifyContent: "center",
+  primaryButton: {
+    backgroundColor: "#4F46E5",
+    borderRadius: 12,
+    paddingVertical: 15,
     alignItems: "center",
-    marginRight: 12,
-    marginTop: 1,
+    marginBottom: 12,
+    shadowColor: "#4F46E5",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  stepNumber: {
-    color: "#FFF",
-    fontSize: 13,
-    fontWeight: "700",
+  buttonDisabled: {
+    opacity: 0.6,
   },
-  stepText: {
-    flex: 1,
+  primaryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+  secondaryButton: {
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  secondaryButtonText: {
+    color: "#6B7280",
     fontSize: 14,
-    color: "#4B5563",
-    lineHeight: 20,
-  },
-
-  // ── Footer ────────────────────────────────────────────────
-  spamNote: {
-    fontSize: 13,
-    color: "#9CA3AF",
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  backLink: {
-    marginTop: 20,
-    alignItems: "center",
-  },
-  backLinkText: {
-    color: "#3B82F6",
-    fontSize: 15,
     fontWeight: "600",
   },
 });
