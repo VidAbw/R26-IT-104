@@ -960,7 +960,7 @@ function NannyCamTab({ apiBaseUrl }: { apiBaseUrl: string }) {
           <Image
             source={{ uri: `${streamUrl}?t=${frameTick}` }}
             style={styles.camStreamImage}
-            contentFit="cover"
+            contentFit="contain"
             cachePolicy="none"
           />
         ) : (

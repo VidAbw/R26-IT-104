@@ -50,11 +50,14 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
+          href: null,
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
           ),
         }}
       />
+      <Tabs.Screen name="explore" options={{ href: null }} />
+      <Tabs.Screen name="legal-guidance" options={{ href: null }} />
     </Tabs>
   );
 }

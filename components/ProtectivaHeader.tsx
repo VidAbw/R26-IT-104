@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, Switch, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { ProtectivaTheme } from '../constants/theme';
 import { useDiscreetMode } from '../contexts/DiscreetModeContext';
 
@@ -67,7 +68,10 @@ export const ProtectivaHeader: React.FC<ProtectivaHeaderProps> = ({
               <Text style={styles.quickEscapeText}>Quick Escape</Text>
             </TouchableOpacity>
 
-            <View style={styles.userBadgeRow}>
+            <TouchableOpacity
+              style={styles.userBadgeRow}
+              onPress={() => router.push('/profile')}
+            >
               <View style={styles.avatarCircle}>
                 <Text style={styles.avatarText}>G</Text>
               </View>
@@ -80,15 +84,20 @@ export const ProtectivaHeader: React.FC<ProtectivaHeaderProps> = ({
                   <Ionicons name="log-out-outline" size={18} color={ProtectivaTheme.textSecondary} />
                 </TouchableOpacity>
               )}
-            </View>
+            </TouchableOpacity>
           </>
         )}
 
         {isMobile && (
-          <TouchableOpacity style={styles.bellButton} onPress={onPressAlerts}>
-            <Ionicons name="notifications-outline" size={24} color={ProtectivaTheme.textPrimary} />
-            {unreadAlertCount > 0 && <View style={styles.notificationDot} />}
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity style={styles.bellButton} onPress={onPressAlerts}>
+              <Ionicons name="notifications-outline" size={24} color={ProtectivaTheme.textPrimary} />
+              {unreadAlertCount > 0 && <View style={styles.notificationDot} />}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.avatarCircle} onPress={() => router.push('/profile')}>
+              <Text style={styles.avatarText}>G</Text>
+            </TouchableOpacity>
+          </>
         )}
       </View>
     </View>
