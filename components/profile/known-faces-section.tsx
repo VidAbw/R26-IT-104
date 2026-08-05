@@ -245,36 +245,37 @@ export const KnownFacesSection = () => {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#e7e7e7",
+    borderColor: "#E2E8F0",
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "700",
-    marginBottom: 12,
+    color: "#0F172A",
+    marginBottom: 4,
   },
   buttonRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 10,
-    gap: 10,
+    gap: 12,
   },
   button: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: "center",
   },
   btnStart: {
-    backgroundColor: "#10B981",
+    backgroundColor: "#0D9488",
   },
   buttonText: {
-    color: "#FFF",
+    color: "#FFFFFF",
     fontWeight: "700",
-    fontSize: 15,
+    fontSize: 14,
   }
 });

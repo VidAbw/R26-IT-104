@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback } from "react";
 import * as Linking from "expo-linking";
 import { useRouter } from "expo-router";
+import { Alert } from "react-native";
 import { supabase } from "../lib/supabase";
 
 export interface DeepLinkState {
@@ -30,7 +31,7 @@ function parseUrlParams(url: string): { path: string | null; params: Record<stri
       });
     }
 
-    // Parse hash fragments (#access_token=...&refresh_token=...&type=recovery)
+    // Parse hash fragments (#access_token=...&refresh_token=...&type=signup)
     const hashIndex = url.indexOf("#");
     if (hashIndex !== -1) {
       const hashString = url.substring(hashIndex + 1);
@@ -49,7 +50,7 @@ function parseUrlParams(url: string): { path: string | null; params: Record<stri
 
 /**
  * Custom React hook that listens for and handles incoming Supabase authentication deep links.
- * Supports both cold-start (killed state) and foreground/background app state.
+ * Catches the 'email-confirmed' path, exchange tokens/PKCE code, and redirects the user cleanly.
  */
 export function useAuthDeepLink(): DeepLinkState {
   const router = useRouter();
@@ -73,9 +74,11 @@ export function useAuthDeepLink(): DeepLinkState {
         const accessToken = params.access_token;
         const refreshToken = params.refresh_token;
 
-        console.log(`[useAuthDeepLink] Extracted path: '${path}', type: '${type}', hasCode: ${!!code}, hasTokens: ${!!accessToken}`);
+        console.log(
+          `[useAuthDeepLink] Extracted path: '${path}', type: '${type}', hasCode: ${!!code}, hasTokens: ${!!accessToken}`
+        );
 
-        // 1. PKCE Code Exchange Flow
+        // 1. PKCE Code Exchange Flow (Supabase PKCE Auth)
         if (code) {
           console.log("[useAuthDeepLink] Exchanging PKCE code for session...");
           const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
@@ -101,14 +104,33 @@ export function useAuthDeepLink(): DeepLinkState {
 
         // 3. Navigation Dispatch based on Path & Token Type
         const isRecovery = path === "reset-password" || type === "recovery";
-        const isEmailVerification = path === "verify-email" || type === "signup" || type === "email_change";
+        const isEmailConfirmed =
+          path === "email-confirmed" ||
+          path === "verify-email" ||
+          type === "signup" ||
+          type === "email_change";
 
         if (isRecovery) {
           console.log("[useAuthDeepLink] Directing user to Reset Password screen...");
           router.replace("/reset-password" as any);
-        } else if (isEmailVerification) {
-          console.log("[useAuthDeepLink] Directing user to Email Verification screen...");
-          router.replace("/verify-email" as any);
+        } else if (isEmailConfirmed) {
+          console.log("[useAuthDeepLink] Email confirmed deep link processed successfully.");
+          
+          // Check if session is established after token exchange
+          const { data: sessionData } = await supabase.auth.getSession();
+
+          if (sessionData.session) {
+            console.log("[useAuthDeepLink] Verified session active. Redirecting to Main App Dashboard...");
+            Alert.alert("Email Verified! 🎉", "Your email has been confirmed successfully. Welcome to Protectiva Guardian.");
+            router.replace("/" as any);
+          } else {
+            console.log("[useAuthDeepLink] Redirecting to Login with success status...");
+            Alert.alert("Email Verified! 🎉", "Your email has been confirmed successfully. Please log in to continue.");
+            router.replace({
+              pathname: "/login",
+              params: { confirmed: "true" },
+            } as any);
+          }
         }
 
         setState({ isProcessingLink: false, lastPath: path, error: null });

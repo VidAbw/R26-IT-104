@@ -24,6 +24,7 @@ import { DiscreetModeProvider, useDiscreetMode } from "../../contexts/DiscreetMo
 import { ProtectivaHeader } from "../../components/ProtectivaHeader";
 import { ProtectivaSidebar, ProtectivaNavTab } from "../../components/ProtectivaSidebar";
 import { EmergencyAlertModal } from "../../components/EmergencyAlertModal";
+import { useAuth } from "../../contexts/AuthProvider";
 
 // Default Fallback IP
 const DEFAULT_API_URL = Platform.OS === "web" ? "http://127.0.0.1:8000" : "http://192.168.1.72:8000";
@@ -427,13 +428,14 @@ function OverviewDashboardView({
   onStopGuardian,
 }: OverviewProps) {
   const isOnline = listenerStatus.startsWith("Online");
+  const { userName } = useAuth();
 
   return (
     <View style={styles.overviewContainer}>
       {/* Welcome Banner */}
       <View style={styles.welcomeBanner}>
         <View>
-          <Text style={styles.welcomeTitle}>Welcome back, Guardian! 👋</Text>
+          <Text style={styles.welcomeTitle}>Welcome back, {userName || "Guardian"}! 👋</Text>
           <Text style={styles.welcomeSubtext}>
             You're all set. Everything looks good and your child is protected.
           </Text>

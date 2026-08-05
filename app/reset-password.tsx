@@ -11,9 +11,11 @@ import {
   TouchableOpacity,
   View,
   Alert,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { supabaseAuthService } from "../services/supabaseAuthService";
+import { ProtectivaTheme } from "../constants/theme";
 
 export default function ResetPasswordScreen() {
   const [password, setPassword] = useState("");
@@ -92,9 +94,17 @@ export default function ResetPasswordScreen() {
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.card}>
+          <View style={styles.shieldIconContainer}>
+            <Image
+              source={require("../assets/images/pacifier.png")}
+              style={styles.pacifierLogo}
+              resizeMode="contain"
+            />
+          </View>
+
           <Text style={styles.title}>Set New Password</Text>
           <Text style={styles.subtitle}>
-            Please choose a strong password with at least 6 characters.
+            Please choose a strong password with at least 6 characters for your Protectiva account.
           </Text>
 
           {/* New Password Input */}
@@ -103,7 +113,7 @@ export default function ResetPasswordScreen() {
             <TextInput
               style={styles.input}
               placeholder="Enter new password"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor="#94A3B8"
               secureTextEntry={!showPassword}
               value={password}
               onChangeText={setPassword}
@@ -123,7 +133,7 @@ export default function ResetPasswordScreen() {
             <TextInput
               style={styles.input}
               placeholder="Re-enter new password"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor="#94A3B8"
               secureTextEntry={!showPassword}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
@@ -162,90 +172,104 @@ export default function ResetPasswordScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#F8FAFC",
   },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: "center",
+    alignItems: "center",
     padding: 20,
   },
   card: {
+    width: "100%",
+    maxWidth: 440,
     backgroundColor: "#FFFFFF",
     borderRadius: 20,
-    padding: 24,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    padding: 28,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#E2E8F0",
+    shadowColor: ProtectivaTheme.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+  },
+  shieldIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: "#E6F4F1",
+    borderWidth: 2,
+    borderColor: ProtectivaTheme.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    marginBottom: 16,
+  },
+  pacifierLogo: {
+    width: 32,
+    height: 32,
+    tintColor: ProtectivaTheme.primaryDark,
   },
   title: {
     fontSize: 24,
     fontWeight: "800",
-    color: "#111827",
+    color: ProtectivaTheme.primaryDark,
     marginBottom: 8,
     textAlign: "center",
   },
   subtitle: {
-    fontSize: 14,
-    color: "#6B7280",
+    fontSize: 13,
+    color: ProtectivaTheme.textSecondary,
     textAlign: "center",
-    marginBottom: 24,
-    lineHeight: 20,
+    marginBottom: 20,
+    lineHeight: 18,
   },
   inputLabel: {
     fontSize: 13,
-    fontWeight: "700",
-    color: "#374151",
+    fontWeight: "600",
+    color: ProtectivaTheme.textPrimary,
     marginBottom: 6,
     marginTop: 4,
   },
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#F8FAFC",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#E2E8F0",
     marginBottom: 16,
   },
   input: {
     flex: 1,
     paddingHorizontal: 14,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: "#111827",
+    paddingVertical: 12,
+    fontSize: 14,
+    color: ProtectivaTheme.textPrimary,
   },
   eyeBtn: {
     paddingHorizontal: 14,
-    paddingVertical: 14,
+    paddingVertical: 12,
   },
   eyeText: {
-    color: "#4F46E5",
+    color: ProtectivaTheme.primaryDark,
     fontSize: 13,
     fontWeight: "700",
   },
   button: {
-    backgroundColor: "#4F46E5",
+    backgroundColor: ProtectivaTheme.primaryDark,
     borderRadius: 12,
-    paddingVertical: 15,
+    paddingVertical: 14,
     alignItems: "center",
     marginTop: 12,
-    shadowColor: "#4F46E5",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
   },
   buttonDisabled: {
-    opacity: 0.6,
+    backgroundColor: "#94A3B8",
   },
   buttonText: {
     color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "800",
+    fontSize: 15,
+    fontWeight: "700",
   },
   cancelButton: {
     marginTop: 16,
@@ -253,23 +277,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   cancelButtonText: {
-    color: "#6B7280",
-    fontSize: 14,
+    color: ProtectivaTheme.textSecondary,
+    fontSize: 13,
     fontWeight: "600",
   },
   successIconBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "#D1FAE5",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#DCFCE7",
     justifyContent: "center",
     alignItems: "center",
     alignSelf: "center",
     marginBottom: 16,
   },
   successIconText: {
-    color: "#059669",
-    fontSize: 32,
+    color: "#15803D",
+    fontSize: 28,
     fontWeight: "800",
   },
 });

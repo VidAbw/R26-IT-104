@@ -223,7 +223,7 @@ export default function LegalGuidanceScreen() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <View style={styles.logoContainer}>
-            <MaterialCommunityIcons name="shield-account" size={32} color="#2563eb" />
+            <MaterialCommunityIcons name="shield-account" size={32} color="#0D9488" />
           </View>
           <View>
             <Text style={styles.headerTitle}>{uiText.title}</Text>

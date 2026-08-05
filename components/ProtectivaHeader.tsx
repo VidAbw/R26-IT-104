@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { ProtectivaTheme } from '../constants/theme';
 import { useDiscreetMode } from '../contexts/DiscreetModeContext';
+import { useAuth } from '../contexts/AuthProvider';
 
 interface ProtectivaHeaderProps {
   isMobile?: boolean;
@@ -21,6 +22,7 @@ export const ProtectivaHeader: React.FC<ProtectivaHeaderProps> = ({
   onLogout,
 }) => {
   const { isDiscreetMode, setIsDiscreetMode, handleQuickEscape } = useDiscreetMode();
+  const { userName, userInitial } = useAuth();
 
   return (
     <View style={styles.headerContainer}>
@@ -73,10 +75,10 @@ export const ProtectivaHeader: React.FC<ProtectivaHeaderProps> = ({
               onPress={() => router.push('/profile')}
             >
               <View style={styles.avatarCircle}>
-                <Text style={styles.avatarText}>G</Text>
+                <Text style={styles.avatarText}>{userInitial}</Text>
               </View>
               <View style={styles.userTextCol}>
-                <Text style={styles.userName}>Guardian</Text>
+                <Text style={styles.userName} numberOfLines={1}>{userName}</Text>
                 <Text style={styles.userRole}>Guardian Account</Text>
               </View>
               {onLogout && (
@@ -95,7 +97,7 @@ export const ProtectivaHeader: React.FC<ProtectivaHeaderProps> = ({
               {unreadAlertCount > 0 && <View style={styles.notificationDot} />}
             </TouchableOpacity>
             <TouchableOpacity style={styles.avatarCircle} onPress={() => router.push('/profile')}>
-              <Text style={styles.avatarText}>G</Text>
+              <Text style={styles.avatarText}>{userInitial}</Text>
             </TouchableOpacity>
           </>
         )}

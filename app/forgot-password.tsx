@@ -11,9 +11,11 @@ import {
   TouchableOpacity,
   View,
   Alert,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { supabaseAuthService } from "../services/supabaseAuthService";
+import { ProtectivaTheme } from "../constants/theme";
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState("");
@@ -28,7 +30,6 @@ export default function ForgotPasswordScreen() {
       return;
     }
 
-    // Basic email format check
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(trimmedEmail)) {
       Alert.alert("Invalid Email", "Please enter a valid email address.");
@@ -53,18 +54,20 @@ export default function ForgotPasswordScreen() {
   if (sent) {
     return (
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={{ flex: 1, backgroundColor: "#F8FAFC" }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
         <ScrollView contentContainerStyle={styles.container}>
           <View style={styles.card}>
-            {/* Header Icon */}
-            <View style={styles.iconContainer}>
-              <Text style={styles.iconText}>✉️</Text>
+            <View style={styles.shieldIconContainer}>
+              <Image
+                source={require("../assets/images/pacifier.png")}
+                style={styles.pacifierLogo}
+                resizeMode="contain"
+              />
             </View>
 
             <Text style={styles.title}>Check Your Email</Text>
-
             <Text style={styles.subtitle}>
               We sent a password reset link to:
             </Text>
@@ -126,16 +129,22 @@ export default function ForgotPasswordScreen() {
   // ─── Input State ───────────────────────────────────────────
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      style={{ flex: 1, backgroundColor: "#F8FAFC" }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.card}>
-          <Text style={styles.title}>Forgot Password?</Text>
+          <View style={styles.shieldIconContainer}>
+            <Image
+              source={require("../assets/images/pacifier.png")}
+              style={styles.pacifierLogo}
+              resizeMode="contain"
+            />
+          </View>
 
+          <Text style={styles.title}>Forgot Password?</Text>
           <Text style={styles.subtitle}>
-            Enter the email address associated with your Child Safety Guardian
-            account. We will send you a link to reset your password.
+            Enter the email address associated with your Protectiva Guardian account. We will send you a link to reset your password.
           </Text>
 
           {/* Email Input */}
@@ -143,7 +152,7 @@ export default function ForgotPasswordScreen() {
           <TextInput
             style={styles.input}
             placeholder="e.g. parent@example.com"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor="#94A3B8"
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
@@ -181,51 +190,57 @@ export default function ForgotPasswordScreen() {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#F8FAFC",
     justifyContent: "center",
-    padding: 24,
+    alignItems: "center",
+    padding: 20,
   },
   card: {
+    width: "100%",
+    maxWidth: 440,
     backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 28,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#E2E8F0",
+    shadowColor: ProtectivaTheme.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
   },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "#EEF2FF",
-    justifyContent: "center",
+  shieldIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: "#E6F4F1",
+    borderWidth: 2,
+    borderColor: ProtectivaTheme.primary,
     alignItems: "center",
+    justifyContent: "center",
     alignSelf: "center",
     marginBottom: 16,
   },
-  iconText: {
-    fontSize: 28,
+  pacifierLogo: {
+    width: 32,
+    height: 32,
+    tintColor: ProtectivaTheme.primaryDark,
   },
   title: {
     fontSize: 24,
     fontWeight: "800",
-    color: "#111827",
+    color: ProtectivaTheme.primaryDark,
     textAlign: "center",
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
-    color: "#6B7280",
+    fontSize: 13,
+    color: ProtectivaTheme.textSecondary,
     textAlign: "center",
-    lineHeight: 20,
+    lineHeight: 18,
     marginBottom: 20,
   },
   emailBadge: {
-    backgroundColor: "#EEF2FF",
+    backgroundColor: "#E6F4F1",
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 16,
@@ -233,13 +248,13 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   emailBadgeText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700",
-    color: "#4F46E5",
+    color: ProtectivaTheme.primaryDark,
   },
   stepsContainer: {
-    gap: 16,
-    marginBottom: 28,
+    gap: 14,
+    marginBottom: 24,
   },
   stepItem: {
     flexDirection: "row",
@@ -247,68 +262,63 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   stepNumber: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#4F46E5",
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: ProtectivaTheme.primaryDark,
     justifyContent: "center",
     alignItems: "center",
   },
   stepNumberText: {
     color: "#FFFFFF",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "800",
   },
   stepText: {
-    fontSize: 14,
-    color: "#374151",
+    fontSize: 13,
+    color: ProtectivaTheme.textPrimary,
     flex: 1,
     lineHeight: 18,
   },
   label: {
     fontSize: 13,
-    fontWeight: "700",
-    color: "#374151",
+    fontWeight: "600",
+    color: ProtectivaTheme.textPrimary,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: "#F3F4F6",
+    backgroundColor: "#F8FAFC",
     borderRadius: 12,
     paddingHorizontal: 14,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: "#111827",
+    paddingVertical: 12,
+    fontSize: 14,
+    color: ProtectivaTheme.textPrimary,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#E2E8F0",
     marginBottom: 20,
   },
   primaryButton: {
-    backgroundColor: "#4F46E5",
+    backgroundColor: ProtectivaTheme.primaryDark,
     borderRadius: 12,
-    paddingVertical: 15,
+    paddingVertical: 14,
     alignItems: "center",
     marginBottom: 12,
-    shadowColor: "#4F46E5",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
   },
   buttonDisabled: {
-    opacity: 0.6,
+    backgroundColor: "#94A3B8",
   },
   primaryButtonText: {
     color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "800",
+    fontSize: 15,
+    fontWeight: "700",
   },
   secondaryButton: {
     paddingVertical: 10,
     alignItems: "center",
   },
   secondaryButtonText: {
-    color: "#6B7280",
-    fontSize: 14,
+    color: ProtectivaTheme.textSecondary,
+    fontSize: 13,
     fontWeight: "600",
   },
 });

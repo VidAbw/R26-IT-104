@@ -11,15 +11,19 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Image,
 } from "react-native";
 import { supabase } from "../lib/supabase";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { ProtectivaTheme } from "../constants/theme";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const params = useLocalSearchParams<{ confirmed?: string }>();
+  const isConfirmed = params.confirmed === "true";
 
   async function signInWithEmail() {
     if (!email.trim()) {
@@ -69,75 +73,93 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      style={{ flex: 1, backgroundColor: "#F8FAFC" }}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-        {/* ── App Logo / Branding ─────────────────────────── */}
-        <View style={styles.logoContainer}>
-          <Text style={styles.logoEmoji}>🛡️</Text>
+        <View style={styles.card}>
+          {/* ── Protectiva Brand Logo ─────────────────────────── */}
+          <View style={styles.logoContainer}>
+            <View style={styles.shieldIconContainer}>
+              <Image
+                source={require("../assets/images/pacifier.png")}
+                style={styles.pacifierLogo}
+                resizeMode="contain"
+              />
+            </View>
+            <Text style={styles.title}>Protectiva</Text>
+            <Text style={styles.subtitle}>Child Protection & Guardian Support</Text>
+          </View>
+
+          {/* ── Email Verified Success Banner ───────────────── */}
+          {isConfirmed && (
+            <View style={styles.successBanner}>
+              <Text style={styles.successBannerTitle}>🎉 Email Verified Successfully!</Text>
+              <Text style={styles.successBannerText}>
+                Your account is active. Please enter your password to log in.
+              </Text>
+            </View>
+          )}
+
+          {/* ── Login Form ──────────────────────────────────── */}
+          <Text style={styles.inputLabel}>Email Address</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. parent@gmail.com"
+            placeholderTextColor="#94A3B8"
+            onChangeText={setEmail}
+            value={email}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+
+          <Text style={styles.inputLabel}>Password</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Enter your password"
+            placeholderTextColor="#94A3B8"
+            secureTextEntry={true}
+            onChangeText={setPassword}
+            value={password}
+          />
+
+          <TouchableOpacity
+            onPress={() => router.push("/forgot-password")}
+            style={styles.forgotLink}
+          >
+            <Text style={styles.forgotLinkText}>Forgot Password?</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.button, loading && styles.buttonDisabled]}
+            onPress={signInWithEmail}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <Text style={styles.buttonText}>Login to Dashboard</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => router.push("/register")}
+            style={styles.registerLink}
+          >
+            <Text style={styles.registerLinkText}>
+              Don't have a Guardian account?{" "}
+              <Text style={styles.registerLinkBold}>Create one</Text>
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        <Text style={styles.title}>Welcome Back</Text>
-        <Text style={styles.subtitle}>Child Safety Guardian</Text>
-
-        {/* ── Email Input ─────────────────────────────────── */}
-        <Text style={styles.inputLabel}>Email Address</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. parent@gmail.com"
-          placeholderTextColor="#9CA3AF"
-          onChangeText={setEmail}
-          value={email}
-          autoCapitalize="none"
-          keyboardType="email-address"
-        />
-
-        {/* ── Password Input ──────────────────────────────── */}
-        <Text style={styles.inputLabel}>Password</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter your password"
-          placeholderTextColor="#9CA3AF"
-          secureTextEntry={true}
-          onChangeText={setPassword}
-          value={password}
-        />
-
-        {/* ── Forgot Password ─────────────────────────────── */}
-        <TouchableOpacity
-          onPress={() => router.push("/forgot-password")}
-          style={styles.forgotLink}
-        >
-          <Text style={styles.forgotLinkText}>Forgot Password?</Text>
-        </TouchableOpacity>
-
-        {/* ── Login Button ────────────────────────────────── */}
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={signInWithEmail}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <Text style={styles.buttonText}>Login</Text>
-          )}
-        </TouchableOpacity>
-
-        {/* ── Register Link ───────────────────────────────── */}
-        <TouchableOpacity
-          onPress={() => router.push("/register")}
-          style={styles.registerLink}
-        >
-          <Text style={styles.registerLinkText}>
-            Don't have an account?{" "}
-            <Text style={styles.registerLinkBold}>Create one</Text>
-          </Text>
-        </TouchableOpacity>
+        {/* Footer info */}
+        <Text style={styles.footerText}>
+          Protect. Support. Empower. • Protecting children everywhere.
+        </Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -147,93 +169,133 @@ const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
     justifyContent: "center",
-    padding: 24,
-    backgroundColor: "#F9FAFB",
+    alignItems: "center",
+    padding: 20,
+    backgroundColor: "#F8FAFC",
   },
-
-  // ── Logo ──────────────────────────────────────────────────
+  card: {
+    width: "100%",
+    maxWidth: 440,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 28,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: ProtectivaTheme.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+  },
   logoContainer: {
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 24,
   },
-  logoEmoji: {
-    fontSize: 56,
+  shieldIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: "#E6F4F1",
+    borderWidth: 2,
+    borderColor: ProtectivaTheme.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
   },
-
-  // ── Typography ────────────────────────────────────────────
+  pacifierLogo: {
+    width: 32,
+    height: 32,
+    tintColor: ProtectivaTheme.primaryDark,
+  },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: "800",
-    color: "#111827",
-    textAlign: "center",
+    color: ProtectivaTheme.primaryDark,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 15,
-    color: "#6B7280",
-    textAlign: "center",
-    marginBottom: 30,
+    fontSize: 13,
+    color: ProtectivaTheme.textSecondary,
     marginTop: 4,
+    fontWeight: "500",
   },
-
-  // ── Inputs ────────────────────────────────────────────────
-  inputLabel: {
+  successBanner: {
+    backgroundColor: "#DCFCE7",
+    borderColor: "#86EFAC",
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 20,
+    alignItems: "center",
+  },
+  successBannerTitle: {
     fontSize: 14,
+    fontWeight: "700",
+    color: "#15803D",
+    marginBottom: 4,
+  },
+  successBannerText: {
+    fontSize: 12,
+    color: "#166534",
+    textAlign: "center",
+  },
+  inputLabel: {
+    fontSize: 13,
     fontWeight: "600",
-    color: "#374151",
+    color: ProtectivaTheme.textPrimary,
     marginBottom: 6,
     marginTop: 12,
   },
   input: {
-    height: 50,
-    borderColor: "#D1D5DB",
+    height: 48,
+    borderColor: "#E2E8F0",
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 12,
     paddingHorizontal: 14,
-    fontSize: 15,
-    backgroundColor: "#FFF",
-    color: "#111827",
+    fontSize: 14,
+    backgroundColor: "#F8FAFC",
+    color: ProtectivaTheme.textPrimary,
   },
-
-  // ── Forgot Password ───────────────────────────────────────
   forgotLink: {
     alignSelf: "flex-end",
     marginTop: 10,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   forgotLinkText: {
-    color: "#3B82F6",
-    fontSize: 14,
+    color: ProtectivaTheme.primaryDark,
+    fontSize: 13,
     fontWeight: "600",
   },
-
-  // ── Button ────────────────────────────────────────────────
   button: {
-    backgroundColor: "#3B82F6",
-    paddingVertical: 15,
-    borderRadius: 10,
+    backgroundColor: ProtectivaTheme.primaryDark,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: "center",
     marginTop: 20,
   },
   buttonDisabled: {
-    backgroundColor: "#93C5FD",
+    backgroundColor: "#94A3B8",
   },
   buttonText: {
-    color: "#FFF",
-    fontSize: 16,
+    color: "#FFFFFF",
+    fontSize: 15,
     fontWeight: "700",
   },
-
-  // ── Register Link ─────────────────────────────────────────
   registerLink: {
     marginTop: 24,
     alignItems: "center",
   },
   registerLinkText: {
-    color: "#6B7280",
-    fontSize: 15,
+    color: ProtectivaTheme.textSecondary,
+    fontSize: 13,
   },
   registerLinkBold: {
-    color: "#3B82F6",
+    color: ProtectivaTheme.primaryDark,
     fontWeight: "700",
+  },
+  footerText: {
+    fontSize: 11,
+    color: ProtectivaTheme.textSecondary,
+    textAlign: "center",
+    marginTop: 24,
   },
 });

@@ -2,15 +2,66 @@
 import * as Linking from "expo-linking";
 import { supabase } from "../lib/supabase";
 
+import { User, Session } from "@supabase/supabase-js";
+
 export interface AuthResponse<T = any> {
   data: T | null;
   error: Error | null;
+}
+
+export interface SignUpParams {
+  email: string;
+  password: string;
+  fullName: string;
+  phoneNumber?: string;
+  homeAddress?: string;
+}
+
+export interface SignUpData {
+  user: User | null;
+  session: Session | null;
 }
 
 /**
  * Supabase Authentication Service supporting Deep Linking for Expo Dev Client.
  */
 export const supabaseAuthService = {
+  /**
+   * Registers a new user with Supabase Auth including metadata and dynamic email confirmation redirect URL.
+   * Generates deep link redirect: e.g. "childsafetyapp://email-confirmed"
+   */
+  async signUp(params: SignUpParams): Promise<AuthResponse<SignUpData>> {
+    try {
+      const { email, password, fullName, phoneNumber, homeAddress } = params;
+      const emailRedirectTo = Linking.createURL("email-confirmed");
+
+      console.log("[SupabaseAuthService] Registering user with emailRedirectTo:", emailRedirectTo);
+
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim().toLowerCase(),
+        password,
+        options: {
+          data: {
+            display_name: fullName.trim(),
+            phone: phoneNumber?.trim() || null,
+            address: homeAddress?.trim() || null,
+          },
+          emailRedirectTo,
+        },
+      });
+
+      if (error) {
+        console.error("[SupabaseAuthService] signUp error:", error.message || error.name || JSON.stringify(error));
+        return { data: null, error };
+      }
+
+      return { data: { user: data.user, session: data.session }, error: null };
+    } catch (err: any) {
+      console.error("[SupabaseAuthService] Unexpected signUp exception:", err?.message || err);
+      return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
+    }
+  },
+
   /**
    * Generates a dynamic deep link redirect URL using expo-linking.
    * For Expo Dev Client & Standalone builds with scheme "childsafetyapp",
