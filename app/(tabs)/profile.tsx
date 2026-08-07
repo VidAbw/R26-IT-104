@@ -14,6 +14,8 @@ import {
   Text,
   View,
 } from "react-native";
+import { supabase } from "@/lib/supabase";
+import { ProtectivaTheme } from "@/constants/theme";
 
 const getDefaultDisplayName = (
   sessionEmail?: string,
@@ -26,15 +28,14 @@ const getDefaultDisplayName = (
 };
 
 export default function Profile() {
-  const { session } = useAuth();
+  const { session, userName, refreshProfile } = useAuth();
   const defaultDisplayName = useMemo(
     () =>
       getDefaultDisplayName(
         session?.user?.email,
-        (session?.user?.user_metadata?.full_name ||
-          session?.user?.user_metadata?.name) as string | undefined,
+        userName || (session?.user?.user_metadata?.display_name as string | undefined),
       ),
-    [session],
+    [session, userName],
   );
 
   const [profile, setProfile] = useState<ParentProfile | null>(null);
@@ -69,6 +70,21 @@ export default function Profile() {
   const updateDisplayName = async (name: string) => {
     if (!profile) return;
     await persistProfile({ ...profile, displayName: name });
+
+    if (session?.user) {
+      try {
+        await supabase.from("profiles").upsert({
+          user_id: session.user.id,
+          display_name: name.trim(),
+        });
+        await supabase.auth.updateUser({
+          data: { display_name: name.trim() },
+        });
+        refreshProfile();
+      } catch (e) {
+        console.warn("Failed to sync profile to Supabase:", e);
+      }
+    }
   };
 
   const updatePhotoUri = async (photoUri: string) => {
@@ -159,31 +175,33 @@ export default function Profile() {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#f6f8fc",
+    backgroundColor: "#F8FAFC",
   },
   content: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
-    paddingTop: 10,
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+    paddingTop: 16,
   },
   pageTitle: {
     fontSize: 24,
     fontWeight: "800",
-    color: "#102a43",
+    color: ProtectivaTheme.textPrimary,
   },
   pageSubtitle: {
     fontSize: 14,
-    color: "#486581",
+    color: ProtectivaTheme.textSecondary,
     marginTop: 4,
-    marginBottom: 10,
+    marginBottom: 16,
   },
   savingText: {
-    color: "#2f6a9a",
+    color: ProtectivaTheme.primaryDark,
+    fontWeight: "600",
     marginBottom: 8,
   },
   loaderWrap: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#F8FAFC",
   },
 });

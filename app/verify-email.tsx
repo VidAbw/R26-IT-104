@@ -7,9 +7,11 @@ import {
   TouchableOpacity,
   View,
   Alert,
+  Image,
 } from "react-native";
 import { supabase } from "../lib/supabase";
 import { useRouter, useLocalSearchParams } from "expo-router";
+import { ProtectivaTheme } from "../constants/theme";
 
 export default function VerifyEmailScreen() {
   const [resending, setResending] = useState(false);
@@ -45,7 +47,6 @@ export default function VerifyEmailScreen() {
     setResending(false);
 
     if (error) {
-      // Handle rate limiting gracefully
       if (error.message.includes("rate") || error.message.includes("limit")) {
         Alert.alert(
           "Please Wait",
@@ -57,7 +58,7 @@ export default function VerifyEmailScreen() {
       return;
     }
 
-    setCooldown(60); // 60 second cooldown
+    setCooldown(60);
     Alert.alert("Email Sent!", "A new verification email has been sent.");
   }, [email]);
 
@@ -67,14 +68,11 @@ export default function VerifyEmailScreen() {
 
     setChecking(true);
 
-    // Try to get the session — if the user clicked the verification link
-    // in a browser/WebView, Supabase will have activated their account.
-    const { data, error } = await supabase.auth.getSession();
+    const { data } = await supabase.auth.getSession();
 
     setChecking(false);
 
     if (data?.session) {
-      // Session exists = user is verified and logged in
       Alert.alert(
         "Verified! ✅",
         "Your email has been verified successfully.",
@@ -91,103 +89,103 @@ export default function VerifyEmailScreen() {
 
   return (
     <View style={styles.container}>
-      {/* ── Envelope Icon ─────────────────────────────────── */}
-      <View style={styles.iconContainer}>
-        <View style={styles.iconCircle}>
-          <Text style={styles.icon}>📧</Text>
+      <View style={styles.card}>
+        <View style={styles.shieldIconContainer}>
+          <Image
+            source={require("../assets/images/pacifier.png")}
+            style={styles.pacifierLogo}
+            resizeMode="contain"
+          />
         </View>
+
+        <Text style={styles.title}>Verify Your Email</Text>
+        <Text style={styles.subtitle}>
+          We've sent a verification link to:
+        </Text>
+
+        {email ? (
+          <View style={styles.emailBadge}>
+            <Text style={styles.emailText}>{email}</Text>
+          </View>
+        ) : null}
+
+        <Text style={styles.description}>
+          Please click the link in the email to activate your account. This helps us keep your family's data safe.
+        </Text>
+
+        {/* Instruction Steps */}
+        <View style={styles.stepsCard}>
+          <View style={styles.stepRow}>
+            <View style={[styles.stepDot, styles.stepDotActive]} />
+            <Text style={styles.stepLabel}>Open your email app</Text>
+          </View>
+          <View style={styles.stepDivider} />
+          <View style={styles.stepRow}>
+            <View style={[styles.stepDot, styles.stepDotActive]} />
+            <Text style={styles.stepLabel}>
+              Find the email from Protectiva Guardian
+            </Text>
+          </View>
+          <View style={styles.stepDivider} />
+          <View style={styles.stepRow}>
+            <View style={styles.stepDot} />
+            <Text style={styles.stepLabel}>Click "Confirm your email"</Text>
+          </View>
+          <View style={styles.stepDivider} />
+          <View style={styles.stepRow}>
+            <View style={styles.stepDot} />
+            <Text style={styles.stepLabel}>Come back here and tap "I've Verified"</Text>
+          </View>
+        </View>
+
+        {/* Action Buttons */}
+        <TouchableOpacity
+          style={[styles.primaryButton, checking && styles.buttonDisabled]}
+          onPress={handleCheckStatus}
+          disabled={checking}
+        >
+          {checking ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <Text style={styles.primaryButtonText}>I've Verified My Email ✓</Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.resendButton,
+            (resending || cooldown > 0) && styles.resendButtonDisabled,
+          ]}
+          onPress={handleResend}
+          disabled={resending || cooldown > 0}
+        >
+          {resending ? (
+            <ActivityIndicator color={ProtectivaTheme.primaryDark} size="small" />
+          ) : (
+            <Text
+              style={[
+                styles.resendButtonText,
+                cooldown > 0 && styles.resendButtonTextDisabled,
+              ]}
+            >
+              {cooldown > 0
+                ? `Resend in ${cooldown}s`
+                : "Resend Verification Email"}
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        <Text style={styles.spamNote}>
+          Can't find it? Check your spam or junk folder.
+        </Text>
+
+        <TouchableOpacity
+          style={styles.loginLink}
+          onPress={() => router.replace("/login")}
+        >
+          <Text style={styles.loginLinkText}>← Back to Login</Text>
+        </TouchableOpacity>
       </View>
-
-      {/* ── Title & Description ───────────────────────────── */}
-      <Text style={styles.title}>Verify Your Email</Text>
-      <Text style={styles.subtitle}>
-        We've sent a verification link to:
-      </Text>
-
-      {email ? (
-        <View style={styles.emailBadge}>
-          <Text style={styles.emailText}>{email}</Text>
-        </View>
-      ) : null}
-
-      <Text style={styles.description}>
-        Please click the link in the email to activate your account. This helps
-        us keep your family's data safe.
-      </Text>
-
-      {/* ── Instruction Steps ─────────────────────────────── */}
-      <View style={styles.stepsCard}>
-        <View style={styles.stepRow}>
-          <View style={[styles.stepDot, styles.stepDotActive]} />
-          <Text style={styles.stepLabel}>Open your email app</Text>
-        </View>
-        <View style={styles.stepDivider} />
-        <View style={styles.stepRow}>
-          <View style={[styles.stepDot, styles.stepDotActive]} />
-          <Text style={styles.stepLabel}>
-            Find the email from Child Safety Guardian
-          </Text>
-        </View>
-        <View style={styles.stepDivider} />
-        <View style={styles.stepRow}>
-          <View style={styles.stepDot} />
-          <Text style={styles.stepLabel}>Click "Confirm your email"</Text>
-        </View>
-        <View style={styles.stepDivider} />
-        <View style={styles.stepRow}>
-          <View style={styles.stepDot} />
-          <Text style={styles.stepLabel}>Come back here and tap "I've Verified"</Text>
-        </View>
-      </View>
-
-      {/* ── Action Buttons ────────────────────────────────── */}
-      <TouchableOpacity
-        style={[styles.primaryButton, checking && styles.buttonDisabled]}
-        onPress={handleCheckStatus}
-        disabled={checking}
-      >
-        {checking ? (
-          <ActivityIndicator color="#FFF" />
-        ) : (
-          <Text style={styles.primaryButtonText}>I've Verified My Email ✓</Text>
-        )}
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[
-          styles.resendButton,
-          (resending || cooldown > 0) && styles.resendButtonDisabled,
-        ]}
-        onPress={handleResend}
-        disabled={resending || cooldown > 0}
-      >
-        {resending ? (
-          <ActivityIndicator color="#3B82F6" size="small" />
-        ) : (
-          <Text
-            style={[
-              styles.resendButtonText,
-              cooldown > 0 && styles.resendButtonTextDisabled,
-            ]}
-          >
-            {cooldown > 0
-              ? `Resend in ${cooldown}s`
-              : "Resend Verification Email"}
-          </Text>
-        )}
-      </TouchableOpacity>
-
-      {/* ── Footer ────────────────────────────────────────── */}
-      <Text style={styles.spamNote}>
-        Can't find it? Check your spam or junk folder.
-      </Text>
-
-      <TouchableOpacity
-        style={styles.loginLink}
-        onPress={() => router.replace("/login")}
-      >
-        <Text style={styles.loginLinkText}>← Back to Login</Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -196,158 +194,154 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
-    padding: 24,
-    backgroundColor: "#F9FAFB",
-  },
-
-  // ── Icon ──────────────────────────────────────────────────
-  iconContainer: {
     alignItems: "center",
-    marginBottom: 20,
+    padding: 20,
+    backgroundColor: "#F8FAFC",
   },
-  iconCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: "#EFF6FF",
-    justifyContent: "center",
-    alignItems: "center",
+  card: {
+    width: "100%",
+    maxWidth: 440,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 28,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: ProtectivaTheme.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+  },
+  shieldIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: "#E6F4F1",
     borderWidth: 2,
-    borderColor: "#BFDBFE",
+    borderColor: ProtectivaTheme.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
+    marginBottom: 16,
   },
-  icon: {
-    fontSize: 42,
+  pacifierLogo: {
+    width: 32,
+    height: 32,
+    tintColor: ProtectivaTheme.primaryDark,
   },
-
-  // ── Typography ────────────────────────────────────────────
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "800",
-    color: "#111827",
+    color: ProtectivaTheme.primaryDark,
     textAlign: "center",
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 15,
-    color: "#6B7280",
+    fontSize: 13,
+    color: ProtectivaTheme.textSecondary,
     textAlign: "center",
     marginBottom: 8,
   },
   description: {
-    fontSize: 14,
-    color: "#9CA3AF",
+    fontSize: 13,
+    color: ProtectivaTheme.textSecondary,
     textAlign: "center",
-    lineHeight: 20,
-    marginBottom: 24,
-    paddingHorizontal: 10,
+    lineHeight: 18,
+    marginBottom: 20,
   },
-
-  // ── Email Badge ───────────────────────────────────────────
   emailBadge: {
-    backgroundColor: "#EFF6FF",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
+    backgroundColor: "#E6F4F1",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: 20,
     alignSelf: "center",
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
   },
   emailText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700",
-    color: "#1D4ED8",
+    color: ProtectivaTheme.primaryDark,
   },
-
-  // ── Steps Card ────────────────────────────────────────────
   stepsCard: {
-    backgroundColor: "#FFF",
+    backgroundColor: "#F8FAFC",
     borderRadius: 12,
-    padding: 20,
-    marginBottom: 24,
+    padding: 16,
+    marginBottom: 20,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: "#E2E8F0",
   },
   stepRow: {
     flexDirection: "row",
     alignItems: "center",
   },
   stepDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     borderWidth: 2,
-    borderColor: "#D1D5DB",
-    marginRight: 12,
+    borderColor: "#CBD5E1",
+    marginRight: 10,
   },
   stepDotActive: {
-    borderColor: "#3B82F6",
-    backgroundColor: "#3B82F6",
+    borderColor: ProtectivaTheme.primaryDark,
+    backgroundColor: ProtectivaTheme.primaryDark,
   },
   stepDivider: {
     width: 2,
-    height: 18,
-    backgroundColor: "#E5E7EB",
-    marginLeft: 5,
+    height: 14,
+    backgroundColor: "#E2E8F0",
+    marginLeft: 4,
     marginVertical: 2,
   },
   stepLabel: {
-    fontSize: 14,
-    color: "#374151",
+    fontSize: 13,
+    color: ProtectivaTheme.textPrimary,
     flex: 1,
   },
-
-  // ── Buttons ───────────────────────────────────────────────
   primaryButton: {
-    backgroundColor: "#10B981",
-    paddingVertical: 16,
-    borderRadius: 10,
+    backgroundColor: ProtectivaTheme.primaryDark,
+    paddingVertical: 14,
+    borderRadius: 12,
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 10,
   },
   buttonDisabled: {
-    backgroundColor: "#6EE7B7",
+    backgroundColor: "#94A3B8",
   },
   primaryButtonText: {
     color: "#FFF",
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
   },
   resendButton: {
-    backgroundColor: "#EFF6FF",
-    paddingVertical: 14,
-    borderRadius: 10,
+    backgroundColor: "#E6F4F1",
+    paddingVertical: 12,
+    borderRadius: 12,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
   },
   resendButtonDisabled: {
-    backgroundColor: "#F3F4F6",
-    borderColor: "#E5E7EB",
+    backgroundColor: "#F1F5F9",
   },
   resendButtonText: {
-    color: "#3B82F6",
-    fontSize: 15,
+    color: ProtectivaTheme.primaryDark,
+    fontSize: 13,
     fontWeight: "600",
   },
   resendButtonTextDisabled: {
-    color: "#9CA3AF",
+    color: "#94A3B8",
   },
-
-  // ── Footer ────────────────────────────────────────────────
   spamNote: {
-    fontSize: 13,
-    color: "#9CA3AF",
+    fontSize: 12,
+    color: ProtectivaTheme.textSecondary,
     textAlign: "center",
     marginTop: 16,
   },
   loginLink: {
-    marginTop: 16,
+    marginTop: 14,
     alignItems: "center",
   },
   loginLinkText: {
-    color: "#3B82F6",
-    fontSize: 15,
+    color: ProtectivaTheme.primaryDark,
+    fontSize: 13,
     fontWeight: "600",
   },
 });

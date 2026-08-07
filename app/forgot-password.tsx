@@ -11,9 +11,11 @@ import {
   TouchableOpacity,
   View,
   Alert,
+  Image,
 } from "react-native";
-import { supabase } from "../lib/supabase";
 import { useRouter } from "expo-router";
+import { supabaseAuthService } from "../services/supabaseAuthService";
+import { ProtectivaTheme } from "../constants/theme";
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState("");
@@ -28,7 +30,6 @@ export default function ForgotPasswordScreen() {
       return;
     }
 
-    // Basic email format check
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(trimmedEmail)) {
       Alert.alert("Invalid Email", "Please enter a valid email address.");
@@ -37,11 +38,7 @@ export default function ForgotPasswordScreen() {
 
     setLoading(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
-      // Supabase will redirect here after the user clicks the link in their email.
-      // For mobile deep linking, you would configure this in your Supabase dashboard.
-      redirectTo: "childsafetyapp://reset-password",
-    });
+    const { error } = await supabaseAuthService.sendPasswordResetEmail(trimmedEmail);
 
     setLoading(false);
 
@@ -57,74 +54,73 @@ export default function ForgotPasswordScreen() {
   if (sent) {
     return (
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1, backgroundColor: "#F8FAFC" }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <ScrollView
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.successIconContainer}>
-            <Text style={styles.successIcon}>✉️</Text>
+        <ScrollView contentContainerStyle={styles.container}>
+          <View style={styles.card}>
+            <View style={styles.shieldIconContainer}>
+              <Image
+                source={require("../assets/images/pacifier.png")}
+                style={styles.pacifierLogo}
+                resizeMode="contain"
+              />
+            </View>
+
+            <Text style={styles.title}>Check Your Email</Text>
+            <Text style={styles.subtitle}>
+              We sent a password reset link to:
+            </Text>
+
+            <View style={styles.emailBadge}>
+              <Text style={styles.emailBadgeText}>{email}</Text>
+            </View>
+
+            {/* Instruction Steps */}
+            <View style={styles.stepsContainer}>
+              <View style={styles.stepItem}>
+                <View style={styles.stepNumber}>
+                  <Text style={styles.stepNumberText}>1</Text>
+                </View>
+                <Text style={styles.stepText}>
+                  Open the email on your mobile device.
+                </Text>
+              </View>
+
+              <View style={styles.stepItem}>
+                <View style={styles.stepNumber}>
+                  <Text style={styles.stepNumberText}>2</Text>
+                </View>
+                <Text style={styles.stepText}>
+                  Tap the reset password link or button inside the message.
+                </Text>
+              </View>
+
+              <View style={styles.stepItem}>
+                <View style={styles.stepNumber}>
+                  <Text style={styles.stepNumberText}>3</Text>
+                </View>
+                <Text style={styles.stepText}>
+                  You'll be directed back into the app to set your new password.
+                </Text>
+              </View>
+            </View>
+
+            {/* Actions */}
+            <TouchableOpacity
+              style={styles.primaryButton}
+              onPress={() => setSent(false)}
+            >
+              <Text style={styles.primaryButtonText}>Resend Reset Link</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => router.replace("/login")}
+            >
+              <Text style={styles.secondaryButtonText}>Back to Sign In</Text>
+            </TouchableOpacity>
           </View>
-
-          <Text style={styles.title}>Check Your Email</Text>
-          <Text style={styles.subtitle}>
-            We've sent a password reset link to:
-          </Text>
-          <Text style={styles.emailHighlight}>{email.trim().toLowerCase()}</Text>
-
-          <View style={styles.instructionCard}>
-            <Text style={styles.instructionTitle}>What to do next:</Text>
-
-            <View style={styles.stepRow}>
-              <View style={styles.stepBadge}>
-                <Text style={styles.stepNumber}>1</Text>
-              </View>
-              <Text style={styles.stepText}>
-                Open your email app and find the message from Supabase
-              </Text>
-            </View>
-
-            <View style={styles.stepRow}>
-              <View style={styles.stepBadge}>
-                <Text style={styles.stepNumber}>2</Text>
-              </View>
-              <Text style={styles.stepText}>
-                Click the "Reset Password" link in the email
-              </Text>
-            </View>
-
-            <View style={styles.stepRow}>
-              <View style={styles.stepBadge}>
-                <Text style={styles.stepNumber}>3</Text>
-              </View>
-              <Text style={styles.stepText}>
-                Set your new password and log back in
-              </Text>
-            </View>
-          </View>
-
-          <Text style={styles.spamNote}>
-            Didn't receive the email? Check your spam folder or try again.
-          </Text>
-
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={() => {
-              setSent(false);
-              setEmail("");
-            }}
-          >
-            <Text style={styles.secondaryButtonText}>Try a Different Email</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.backLink}
-            onPress={() => router.replace("/login")}
-          >
-            <Text style={styles.backLinkText}>← Back to Login</Text>
-          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
     );
@@ -133,53 +129,59 @@ export default function ForgotPasswordScreen() {
   // ─── Input State ───────────────────────────────────────────
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      style={{ flex: 1, backgroundColor: "#F8FAFC" }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <ScrollView
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.headerIconContainer}>
-          <Text style={styles.headerIcon}>🔒</Text>
+      <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.card}>
+          <View style={styles.shieldIconContainer}>
+            <Image
+              source={require("../assets/images/pacifier.png")}
+              style={styles.pacifierLogo}
+              resizeMode="contain"
+            />
+          </View>
+
+          <Text style={styles.title}>Forgot Password?</Text>
+          <Text style={styles.subtitle}>
+            Enter the email address associated with your Protectiva Guardian account. We will send you a link to reset your password.
+          </Text>
+
+          {/* Email Input */}
+          <Text style={styles.label}>Email Address</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. parent@example.com"
+            placeholderTextColor="#94A3B8"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={email}
+            onChangeText={setEmail}
+          />
+
+          {/* Submit Button */}
+          <TouchableOpacity
+            style={[styles.primaryButton, loading && styles.buttonDisabled]}
+            onPress={handleResetPassword}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Send Reset Link</Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Back to Login */}
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => router.replace("/login")}
+            disabled={loading}
+          >
+            <Text style={styles.secondaryButtonText}>Back to Sign In</Text>
+          </TouchableOpacity>
         </View>
-
-        <Text style={styles.title}>Forgot Password?</Text>
-        <Text style={styles.subtitle}>
-          No worries! Enter your email address below and we'll send you a link
-          to reset your password.
-        </Text>
-
-        <Text style={styles.inputLabel}>Email Address</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. parent@gmail.com"
-          placeholderTextColor="#9CA3AF"
-          onChangeText={setEmail}
-          value={email}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          autoFocus
-        />
-
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleResetPassword}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#FFF" />
-          ) : (
-            <Text style={styles.buttonText}>Send Reset Link</Text>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.backLink}
-          onPress={() => router.replace("/login")}
-        >
-          <Text style={styles.backLinkText}>← Back to Login</Text>
-        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -188,156 +190,135 @@ export default function ForgotPasswordScreen() {
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
+    backgroundColor: "#F8FAFC",
     justifyContent: "center",
-    padding: 24,
-    backgroundColor: "#F9FAFB",
-  },
-
-  // ── Header Icons ──────────────────────────────────────────
-  headerIconContainer: {
     alignItems: "center",
+    padding: 20,
+  },
+  card: {
+    width: "100%",
+    maxWidth: 440,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 28,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: ProtectivaTheme.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+  },
+  shieldIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: "#E6F4F1",
+    borderWidth: 2,
+    borderColor: ProtectivaTheme.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    alignSelf: "center",
     marginBottom: 16,
   },
-  headerIcon: {
-    fontSize: 56,
+  pacifierLogo: {
+    width: 32,
+    height: 32,
+    tintColor: ProtectivaTheme.primaryDark,
   },
-  successIconContainer: {
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  successIcon: {
-    fontSize: 56,
-  },
-
-  // ── Typography ────────────────────────────────────────────
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: "800",
-    color: "#111827",
+    color: ProtectivaTheme.primaryDark,
     textAlign: "center",
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 15,
-    color: "#6B7280",
+    fontSize: 13,
+    color: ProtectivaTheme.textSecondary,
     textAlign: "center",
-    marginBottom: 30,
-    marginTop: 8,
-    lineHeight: 22,
-    paddingHorizontal: 10,
+    lineHeight: 18,
+    marginBottom: 20,
   },
-  emailHighlight: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#3B82F6",
-    textAlign: "center",
+  emailBadge: {
+    backgroundColor: "#E6F4F1",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignSelf: "center",
     marginBottom: 24,
   },
-
-  // ── Input ─────────────────────────────────────────────────
-  inputLabel: {
+  emailBadgeText: {
     fontSize: 14,
-    fontWeight: "600",
-    color: "#374151",
-    marginBottom: 6,
-  },
-  input: {
-    height: 50,
-    borderColor: "#D1D5DB",
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    fontSize: 15,
-    backgroundColor: "#FFF",
-    color: "#111827",
-  },
-
-  // ── Buttons ───────────────────────────────────────────────
-  button: {
-    backgroundColor: "#3B82F6",
-    paddingVertical: 15,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 24,
-  },
-  buttonDisabled: {
-    backgroundColor: "#93C5FD",
-  },
-  buttonText: {
-    color: "#FFF",
-    fontSize: 16,
     fontWeight: "700",
+    color: ProtectivaTheme.primaryDark,
   },
-  secondaryButton: {
-    backgroundColor: "#EFF6FF",
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
+  stepsContainer: {
+    gap: 14,
+    marginBottom: 24,
   },
-  secondaryButtonText: {
-    color: "#3B82F6",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-
-  // ── Instruction Card (Success State) ──────────────────────
-  instructionCard: {
-    backgroundColor: "#FFF",
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  instructionTitle: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#374151",
-    marginBottom: 16,
-  },
-  stepRow: {
+  stepItem: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 14,
+    alignItems: "center",
+    gap: 12,
   },
-  stepBadge: {
+  stepNumber: {
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: "#3B82F6",
+    backgroundColor: ProtectivaTheme.primaryDark,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
-    marginTop: 1,
   },
-  stepNumber: {
-    color: "#FFF",
-    fontSize: 13,
-    fontWeight: "700",
+  stepNumberText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
   },
   stepText: {
-    flex: 1,
-    fontSize: 14,
-    color: "#4B5563",
-    lineHeight: 20,
-  },
-
-  // ── Footer ────────────────────────────────────────────────
-  spamNote: {
     fontSize: 13,
-    color: "#9CA3AF",
-    textAlign: "center",
-    marginBottom: 16,
+    color: ProtectivaTheme.textPrimary,
+    flex: 1,
+    lineHeight: 18,
   },
-  backLink: {
-    marginTop: 20,
+  label: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: ProtectivaTheme.textPrimary,
+    marginBottom: 6,
+  },
+  input: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: ProtectivaTheme.textPrimary,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    marginBottom: 20,
+  },
+  primaryButton: {
+    backgroundColor: ProtectivaTheme.primaryDark,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  buttonDisabled: {
+    backgroundColor: "#94A3B8",
+  },
+  primaryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  secondaryButton: {
+    paddingVertical: 10,
     alignItems: "center",
   },
-  backLinkText: {
-    color: "#3B82F6",
-    fontSize: 15,
+  secondaryButtonText: {
+    color: ProtectivaTheme.textSecondary,
+    fontSize: 13,
     fontWeight: "600",
   },
 });

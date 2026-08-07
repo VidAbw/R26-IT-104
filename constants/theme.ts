@@ -5,25 +5,45 @@
 
 import { Platform } from 'react-native';
 
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
+export const ProtectivaTheme = {
+  primary: '#0D9488', // Emerald/Teal Primary
+  primaryDark: '#0F766E', // Darker Teal
+  primaryLight: '#059669', // Bright Emerald
+  mintBg: '#F0FDF4', // Very light mint background
+  sidebarBg: '#F8FAFC', // Crisp grey-white sidebar
+  cardBg: '#FFFFFF',
+  textPrimary: '#0F172A', // Dark Slate
+  textSecondary: '#64748B', // Slate grey
+  border: '#E2E8F0',
+  accentGreen: '#10B981',
+  accentGreenBg: '#DCFCE7',
+  accentOrange: '#F97316',
+  accentOrangeBg: '#FFEDD5',
+  quickEscapeRed: '#DC2626',
+  quickEscapeRedHover: '#B91C1C',
+  badgeGreen: '#16A34A',
+  badgeGreenBg: '#DCFCE7',
+  badgeOrange: '#EA580C',
+  badgeOrangeBg: '#FFEDD5',
+  cardShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05)',
+};
 
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    text: '#0F172A',
+    background: '#F8FAFC',
+    tint: '#0D9488',
+    icon: '#64748B',
+    tabIconDefault: '#64748B',
+    tabIconSelected: '#0D9488',
   },
   dark: {
     text: '#ECEDEE',
     background: '#151718',
-    tint: tintColorDark,
+    tint: '#0D9488',
     icon: '#9BA1A6',
     tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    tabIconSelected: '#0D9488',
   },
 };
 
