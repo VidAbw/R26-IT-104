@@ -73,21 +73,21 @@ const styles = StyleSheet.create({
   },
   selectedLocationContainer: {
     marginTop: 12,
-    backgroundColor: "#eff6ff",
+    backgroundColor: "#F0FDF4",
     borderRadius: 8,
     padding: 10,
     borderWidth: 1,
-    borderColor: "#dbeafe",
+    borderColor: "#CCFBF1",
     width: "100%",
   },
   selectedLocationText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#1e3a8a",
+    color: "#0F172A",
     marginBottom: 2,
   },
   coordsText: {
     fontSize: 12,
-    color: "#2563eb",
+    color: "#0F766E",
   },
 });
