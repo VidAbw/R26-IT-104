@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useState, useRef } from "react"
 import {
   ActivityIndicator,
   ScrollView,
@@ -21,7 +21,14 @@ export default function LegalGuidanceScreen() {
   const { width } = useWindowDimensions()
   const isDesktop = width > 1024
   
+  const scrollViewRef = useRef<ScrollView>(null)
+  const [resultsY, setResultsY] = useState(0)
+
   const [description, setDescription] = useState("")
+  const [submittedDescription, setSubmittedDescription] = useState("")
+  const [hasSubmitted, setHasSubmitted] = useState(false)
+  const [isEditingDescription, setIsEditingDescription] = useState(false)
+
   const [selectedLanguage, setSelectedLanguage] = useState<"en" | "si">("en")
   const [isManualSelection, setIsManualSelection] = useState(false)
   const language = selectedLanguage
@@ -54,6 +61,10 @@ export default function LegalGuidanceScreen() {
         privacyNoticeSi: "ඔබේ තොරතුරු රහසිගත වන අතර මාර්ගෝපදේශ සැපයීම සඳහා පමණක් භාවිතා වේ.",
         clear: "Clear",
         submit: "Submit",
+        submittedIncidentTitle: "ඉදිරිපත් කළ සිදුවීම",
+        submittedIncidentSubtitle: "මෙම සිදුවීම් විස්තරය සඳහා නීතිමය මාර්ගෝපදේශය සකසා ඇත",
+        editDescription: "විස්තරය සංස්කරණය කරන්න",
+        newAnalysis: "නව විස්තරයක් ඇතුළත් කරන්න",
         detectedLanguage: "Detected Language",
         abuseCategory: "Abuse Category",
         relevantLawsFound: "Relevant Laws Found",
@@ -117,6 +128,10 @@ export default function LegalGuidanceScreen() {
         privacyNoticeSi: "Your information is private and used only to provide guidance.",
         clear: "Clear",
         submit: "Submit",
+        submittedIncidentTitle: "Submitted Incident",
+        submittedIncidentSubtitle: "Legal guidance generated for this incident description",
+        editDescription: "Edit Description",
+        newAnalysis: "New Analysis",
         detectedLanguage: "Detected Language",
         abuseCategory: "Abuse Category",
         relevantLawsFound: "Relevant Laws Found",
@@ -170,13 +185,31 @@ export default function LegalGuidanceScreen() {
 
   const handleClear = () => {
     setDescription("")
+    setSubmittedDescription("")
     setError("")
     setValidationError("")
     setResult(null)
     setRoadmapResult(null)
     setSelectedLocation(null)
+    setHasSubmitted(false)
+    setIsEditingDescription(false)
     setIsManualSelection(false)
     setSelectedLanguage("en")
+  }
+
+  const handleNewAnalysis = () => {
+    setDescription("")
+    setSubmittedDescription("")
+    setError("")
+    setValidationError("")
+    setResult(null)
+    setRoadmapResult(null)
+    setSelectedLocation(null)
+    setHasSubmitted(false)
+    setIsEditingDescription(false)
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: 0, animated: true })
+    }
   }
 
   const handleSelectLanguage = (lang: "en" | "si") => {
@@ -245,6 +278,9 @@ export default function LegalGuidanceScreen() {
       })
       setError("")
       setResult(data)
+      setSubmittedDescription(description)
+      setHasSubmitted(true)
+      setIsEditingDescription(false)
 
       if (data && data.detected_language) {
         const backendLang = data.detected_language.toLowerCase()
@@ -254,6 +290,14 @@ export default function LegalGuidanceScreen() {
           setSelectedLanguage("en")
         }
       }
+
+      // Smooth scroll to top of results section
+      setTimeout(() => {
+        if (scrollViewRef.current) {
+          const scrollTarget = resultsY > 0 ? resultsY - 20 : 350
+          scrollViewRef.current.scrollTo({ y: scrollTarget, animated: true })
+        }
+      }, 150)
     } catch (err: any) {
       setError(err.message || "Something went wrong")
       setResult(null)
@@ -264,7 +308,12 @@ export default function LegalGuidanceScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      ref={scrollViewRef}
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+      showsVerticalScrollIndicator={false}
+    >
       {/* 1. Header Banner Section */}
       <View style={styles.headerCard}>
         <View style={styles.headerLeftRow}>
@@ -320,65 +369,109 @@ export default function LegalGuidanceScreen() {
         </View>
       </View>
 
-      {/* 2. Incident Description Card */}
-      <View style={styles.incidentCard}>
-        <View style={styles.incidentCardHeader}>
-          <View style={styles.chatIconSquare}>
-            <Ionicons name="chatbox-ellipses" size={20} color={ProtectivaTheme.primaryDark} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.incidentTitle}>
-              {language === 'si' ? uiText.describeTitleSi : uiText.describeTitle}
-            </Text>
-            <Text style={styles.incidentSubtitle}>
-              {language === 'si' ? uiText.describeSubtitleSi : uiText.describeSubtitle}
-            </Text>
-          </View>
-        </View>
-
-        <TextInput
-          style={[styles.textAreaInput, validationError ? styles.textAreaError : null]}
-          placeholder={language === 'si' ? uiText.placeholderSi : uiText.placeholder}
-          placeholderTextColor="#94A3B8"
-          multiline
-          value={description}
-          onChangeText={handleDescriptionChange}
-        />
-
-        {validationError ? (
-          <View style={styles.errorBanner}>
-            <Ionicons name="alert-circle" size={16} color="#EF4444" />
-            <Text style={styles.errorBannerText}>{validationError}</Text>
-          </View>
-        ) : null}
-
-        <View style={styles.incidentCardFooter}>
-          <View style={styles.privacyNoticeLeft}>
-            <Ionicons name="lock-closed-outline" size={14} color={ProtectivaTheme.textSecondary} />
-            <Text style={styles.privacyNoticeText}>
-              {language === 'si' ? uiText.privacyNoticeSi : uiText.privacyNotice}
-            </Text>
+      {/* 2. Incident Description Section (Compact Card after Submit vs Full Form) */}
+      {hasSubmitted && !isEditingDescription ? (
+        /* Compact Submitted Summary Card */
+        <View style={styles.submittedCard}>
+          <View style={styles.submittedCardHeader}>
+            <View style={styles.chatIconSquare}>
+              <Ionicons name="checkmark-circle" size={20} color={ProtectivaTheme.primaryDark} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.submittedTitle}>{uiText.submittedIncidentTitle}</Text>
+              <Text style={styles.submittedSubtitle}>{uiText.submittedIncidentSubtitle}</Text>
+            </View>
+            <View style={styles.langPillBadge}>
+              <Ionicons name="globe-outline" size={14} color={ProtectivaTheme.primaryDark} />
+              <Text style={styles.langPillBadgeText}>
+                {selectedLanguage === "si" ? "සිංහල" : "English"}
+              </Text>
+            </View>
           </View>
 
-          <View style={styles.actionButtonsRight}>
-            <TouchableOpacity style={styles.clearBtnGhost} onPress={handleClear}>
-              <Ionicons name="refresh-outline" size={16} color={ProtectivaTheme.textSecondary} />
-              <Text style={styles.clearBtnText}>{uiText.clear}</Text>
+          <View style={styles.submittedTextContainer}>
+            <Text style={styles.submittedText}>{submittedDescription}</Text>
+          </View>
+
+          <View style={styles.submittedCardFooter}>
+            <TouchableOpacity
+              style={styles.editBtnOutline}
+              onPress={() => setIsEditingDescription(true)}
+            >
+              <Ionicons name="create-outline" size={16} color={ProtectivaTheme.primaryDark} />
+              <Text style={styles.editBtnText}>{uiText.editDescription}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.submitBtnTeal} onPress={handleSubmit} disabled={loading}>
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <>
-                  <Ionicons name="send" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
-                  <Text style={styles.submitBtnText}>{uiText.submit}</Text>
-                </>
-              )}
+            <TouchableOpacity
+              style={styles.newAnalysisBtnGhost}
+              onPress={handleNewAnalysis}
+            >
+              <Ionicons name="add-circle-outline" size={16} color="#64748B" />
+              <Text style={styles.newAnalysisBtnText}>{uiText.newAnalysis}</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </View>
+      ) : (
+        /* Original Full Incident Form */
+        <View style={styles.incidentCard}>
+          <View style={styles.incidentCardHeader}>
+            <View style={styles.chatIconSquare}>
+              <Ionicons name="chatbox-ellipses" size={20} color={ProtectivaTheme.primaryDark} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.incidentTitle}>
+                {language === 'si' ? uiText.describeTitleSi : uiText.describeTitle}
+              </Text>
+              <Text style={styles.incidentSubtitle}>
+                {language === 'si' ? uiText.describeSubtitleSi : uiText.describeSubtitle}
+              </Text>
+            </View>
+          </View>
+
+          <TextInput
+            style={[styles.textAreaInput, validationError ? styles.textAreaError : null]}
+            placeholder={language === 'si' ? uiText.placeholderSi : uiText.placeholder}
+            placeholderTextColor="#94A3B8"
+            multiline
+            value={description}
+            onChangeText={handleDescriptionChange}
+          />
+
+          {validationError ? (
+            <View style={styles.errorBanner}>
+              <Ionicons name="alert-circle" size={16} color="#EF4444" />
+              <Text style={styles.errorBannerText}>{validationError}</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.incidentCardFooter}>
+            <View style={styles.privacyNoticeLeft}>
+              <Ionicons name="lock-closed-outline" size={14} color={ProtectivaTheme.textSecondary} />
+              <Text style={styles.privacyNoticeText}>
+                {language === 'si' ? uiText.privacyNoticeSi : uiText.privacyNotice}
+              </Text>
+            </View>
+
+            <View style={styles.actionButtonsRight}>
+              <TouchableOpacity style={styles.clearBtnGhost} onPress={handleClear}>
+                <Ionicons name="refresh-outline" size={16} color={ProtectivaTheme.textSecondary} />
+                <Text style={styles.clearBtnText}>{uiText.clear}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.submitBtnTeal} onPress={handleSubmit} disabled={loading}>
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="send" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+                    <Text style={styles.submitBtnText}>{uiText.submit}</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* Main Error Message if API fails */}
       {error ? (
@@ -450,7 +543,12 @@ export default function LegalGuidanceScreen() {
 
       {/* 4. Summary Stats Bar & Legal Results Area (After Submission) */}
       {result && (
-        <View style={{ marginTop: 24 }}>
+        <View
+          onLayout={(event) => {
+            setResultsY(event.nativeEvent.layout.y)
+          }}
+          style={{ marginTop: 24 }}
+        >
           {/* Summary Stats Cards */}
           <View style={styles.statsRow}>
             <View style={styles.statCard}>
@@ -872,6 +970,104 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#64748B',
+  },
+
+  // Compact Submitted Summary Card
+  submittedCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#CCFBF1',
+    marginBottom: 20,
+    shadowColor: '#0F766E',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  submittedCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  submittedTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  submittedSubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+  },
+  langPillBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#F0FDFA',
+    borderWidth: 1,
+    borderColor: '#99F6E4',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  langPillBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#0F766E',
+  },
+  submittedTextContainer: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 14,
+  },
+  submittedText: {
+    fontSize: 14,
+    color: '#334155',
+    lineHeight: 20,
+  },
+  submittedCardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  editBtnOutline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#0F766E',
+    backgroundColor: '#F0FDFA',
+  },
+  editBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#0F766E',
+  },
+  newAnalysisBtnGhost: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#FFFFFF',
+  },
+  newAnalysisBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#475569',
   },
 
   // Incident Card
