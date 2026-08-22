@@ -8,9 +8,249 @@ declare global {
   }
 }
 
+// ─── Canonical Sri Lankan district set (25 districts) ──────────────────────
+const SL_DISTRICTS = new Set([
+  "Ampara", "Anuradhapura", "Badulla", "Batticaloa", "Colombo",
+  "Galle", "Gampaha", "Hambantota", "Jaffna", "Kalutara",
+  "Kandy", "Kegalle", "Kilinochchi", "Kurunegala", "Mannar",
+  "Matale", "Matara", "Monaragala", "Mullaitivu", "Nuwara Eliya",
+  "Polonnaruwa", "Puttalam", "Ratnapura", "Trincomalee", "Vavuniya",
+]);
+
+// Sorted by descending length so "Nuwara Eliya" always beats "Eliya".
+const SL_DISTRICTS_SORTED = [...SL_DISTRICTS].sort((a, b) => b.length - a.length);
+
+// Mapping from Sinhala district names/variations to canonical English district names.
+const SINHALA_DISTRICT_MAP: Record<string, string> = {
+  "අම්පාර": "Ampara",
+  "අනුරාධපුර": "Anuradhapura",
+  "අනුරාධපුරය": "Anuradhapura",
+  "බදුල්ල": "Badulla",
+  "මඩකලපුව": "Batticaloa",
+  "කොළඹ": "Colombo",
+  "ගාල්ල": "Galle",
+  "ගම්පහ": "Gampaha",
+  "හම්බන්තොට": "Hambantota",
+  "යාපනය": "Jaffna",
+  "කළුතර": "Kalutara",
+  "මහනුවර": "Kandy",
+  "කෑගල්ල": "Kegalle",
+  "කිලිනොච්චිය": "Kilinochchi",
+  "කුරුණෑගල": "Kurunegala",
+  "මන්නාරම": "Mannar",
+  "මාතලේ": "Matale",
+  "මාතර": "Matara",
+  "මොනරාගල": "Monaragala",
+  "මුලතිවු": "Mullaitivu",
+  "මුලතීවු": "Mullaitivu",
+  "නුවරඑළිය": "Nuwara Eliya",
+  "නුවර එළිය": "Nuwara Eliya",
+  "පොළොන්නරුව": "Polonnaruwa",
+  "පුත්තලම": "Puttalam",
+  "රත්නපුර": "Ratnapura",
+  "රත්නපුරය": "Ratnapura",
+  "ත්‍රිකුණාමලය": "Trincomalee",
+  "ත්‍රිකුණාමල": "Trincomalee",
+  "වවුනියාව": "Vavuniya"
+};
+
+/**
+ * Strips common suffixes (like " District", " දිස්ත්‍රික්කය") and matches against
+ * either English canonical names or the Sinhala-to-English translation mapping.
+ */
+function normaliseAndMatchDistrict(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  let cleaned = String(raw).trim();
+  
+  // Remove "District" suffix (case-insensitive)
+  cleaned = cleaned.replace(/\s*district\s*$/i, "").trim();
+  
+  // Remove Sinhala "දිස්ත්‍රික්කය" / "දිස්ත්‍රික්කයේ" suffix
+  cleaned = cleaned.replace(/\s*දිස්ත්‍රික්කය\s*$/g, "").trim();
+  cleaned = cleaned.replace(/\s*දිස්ත්‍රික්කයේ\s*$/g, "").trim();
+  
+  // Case-insensitive check in SL_DISTRICTS (canonical English set)
+  const lower = cleaned.toLowerCase();
+  for (const d of SL_DISTRICTS) {
+    if (d.toLowerCase() === lower) return d;
+  }
+  
+  // Check Sinhala map directly
+  if (SINHALA_DISTRICT_MAP[cleaned]) {
+    return SINHALA_DISTRICT_MAP[cleaned];
+  }
+  
+  // Check Sinhala key mapping space-insensitively
+  const compactedCleaned = cleaned.replace(/\s+/g, "");
+  for (const key of Object.keys(SINHALA_DISTRICT_MAP)) {
+    if (key.replace(/\s+/g, "") === compactedCleaned) {
+      return SINHALA_DISTRICT_MAP[key];
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Last-resort fallback: scans the raw formatted address / display_name string
+ * for any canonical English or Sinhala district name appearing as a substring.
+ */
+function districtFromAddress(address: string | null | undefined): string | null {
+  if (!address) return null;
+  const lower = address.toLowerCase();
+  
+  // Scan English canonical names first (sorted by length descending)
+  for (const d of SL_DISTRICTS_SORTED) {
+    if (lower.includes(d.toLowerCase())) {
+      return d;
+    }
+  }
+  
+  // Scan Sinhala district names (sorted by length descending)
+  const sortedSinhalaKeys = Object.keys(SINHALA_DISTRICT_MAP).sort((a, b) => b.length - a.length);
+  for (const key of sortedSinhalaKeys) {
+    if (address.includes(key)) {
+      return SINHALA_DISTRICT_MAP[key];
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Extracts the canonical Sri Lanka district from a SINGLE Google Maps
+ * address_components array. Used internally by extractDistrictFromAllResults.
+ *
+ * Checks structured components in this exact order of preference (per spec):
+ * 1. administrative_area_level_2
+ * 2. district
+ * 3. state_district
+ * 4. county
+ * 5. city_district
+ */
+function extractDistrictFromComponents(components: any[]): string | null {
+  if (!Array.isArray(components)) return null;
+
+  const targetTypes = [
+    "administrative_area_level_2",
+    "district",
+    "state_district",
+    "county",
+    "city_district"
+  ];
+
+  for (const type of targetTypes) {
+    const comp = components.find((c: any) =>
+      Array.isArray(c.types) && c.types.includes(type)
+    );
+    if (comp) {
+      const matched = normaliseAndMatchDistrict(comp.long_name || comp.short_name);
+      if (matched) return matched;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Scans ALL Google Geocoder result objects for the canonical district.
+ *
+ * Strategy:
+ *  1. Try extractDistrictFromComponents on EVERY result's address_components in order.
+ *  2. Fall back to scanning the formatted_address substring of every result.
+ */
+function extractDistrictFromAllResults(results: any[]): string | null {
+  if (!Array.isArray(results) || results.length === 0) return null;
+
+  // Pass 1 — structured component scan across all results in order
+  for (const result of results) {
+    const d = extractDistrictFromComponents(result?.address_components);
+    if (d) return d;
+  }
+
+  // Pass 2 — substring scan of every formatted_address string in every result
+  for (const result of results) {
+    const d = districtFromAddress(result?.formatted_address);
+    if (d) return d;
+  }
+
+  return null;
+}
+
+/**
+ * Extracts the canonical Sri Lanka district from a Nominatim address object.
+ *
+ * Checks structured keys in this exact order of preference (per spec):
+ * 1. administrative_area_level_2
+ * 2. district
+ * 3. state_district
+ * 4. county
+ * 5. city_district
+ */
+function extractDistrictFromNominatim(address: any, displayName?: string): string | null {
+  if (address) {
+    const districtFields = [
+      "administrative_area_level_2",
+      "district",
+      "state_district",
+      "county",
+      "city_district"
+    ];
+    for (const field of districtFields) {
+      if (address[field]) {
+        const d = normaliseAndMatchDistrict(address[field]);
+        if (d) return d;
+      }
+    }
+  }
+  // Fallback to substring scan on full display_name
+  return districtFromAddress(displayName) ?? null;
+}
+
+/**
+ * Logs detailed geocoding debug info to standard console (Spec requirement F).
+ */
+function logGeocodingDebug(
+  source: string,
+  lat: number,
+  lng: number,
+  results: any[] | null,
+  addressComponents: any[] | null,
+  normalizedDistrict: string | null | undefined
+) {
+  // Find administrative_area_level_2 component if components exist
+  let adminAreaLevel2Comp = null;
+  if (Array.isArray(addressComponents)) {
+    adminAreaLevel2Comp = addressComponents.find((c: any) =>
+      Array.isArray(c.types) && c.types.includes("administrative_area_level_2")
+    );
+  } else if (Array.isArray(results)) {
+    for (const r of results) {
+      if (r && Array.isArray(r.address_components)) {
+        const found = r.address_components.find((c: any) =>
+          Array.isArray(c.types) && c.types.includes("administrative_area_level_2")
+        );
+        if (found) {
+          adminAreaLevel2Comp = found;
+          break;
+        }
+      }
+    }
+  }
+
+  console.log(`[IncidentMap Debug - ${source}] 📍 Geocoding Debug Information:`, {
+    selectedCoordinates: { lat, lng },
+    fullGoogleGeocoderResult: results,
+    addressComponents: addressComponents ?? (results ? results.map(r => r.address_components) : null),
+    administrativeAreaLevel2Component: adminAreaLevel2Comp,
+    normalizedDistrict: normalizedDistrict ?? "Unknown"
+  });
+}
+
+
 interface IncidentMapProps {
   language: string;
-  onLocationSelect: (latitude: number, longitude: number, placeName?: string) => void;
+  onLocationSelect: (latitude: number, longitude: number, placeName?: string, district?: string) => void;
   selectedLocation: { latitude: number; longitude: number; placeName?: string } | null;
 }
 
@@ -21,7 +261,7 @@ export default function IncidentMap({ language, onLocationSelect, selectedLocati
 
   const [mapLoaded, setMapLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [tempLocation, setTempLocation] = useState<{ latitude: number; longitude: number; placeName?: string } | null>(null);
+  const [tempLocation, setTempLocation] = useState<{ latitude: number; longitude: number; placeName?: string; district?: string } | null>(null);
   
   const mapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -138,7 +378,7 @@ export default function IncidentMap({ language, onLocationSelect, selectedLocati
         markerRef.current.setPosition(colomboCenter);
         googleMapRef.current.setCenter({ lat: 7.8731, lng: 80.7718 });
         googleMapRef.current.setZoom(8);
-        setTempLocation({ latitude: colomboCenter.lat, longitude: colomboCenter.lng, placeName: "Colombo, Sri Lanka" });
+        setTempLocation({ latitude: colomboCenter.lat, longitude: colomboCenter.lng, placeName: "Colombo, Sri Lanka", district: "Colombo" });
         if (inputRef.current) {
           inputRef.current.value = "Colombo, Sri Lanka";
         }
@@ -190,44 +430,56 @@ export default function IncidentMap({ language, onLocationSelect, selectedLocati
     markerRef.current = marker;
 
     if (!selectedLocation) {
-      setTempLocation({ latitude: colomboCenter.lat, longitude: colomboCenter.lng, placeName: "Colombo, Sri Lanka" });
-      if (inputRef.current) {
-        inputRef.current.value = "Colombo, Sri Lanka";
-      }
-    } else {
-      map.setCenter(initialPos);
-      map.setZoom(13);
-      setTempLocation(selectedLocation);
-      if (inputRef.current && selectedLocation.placeName) {
-        inputRef.current.value = selectedLocation.placeName;
-      }
-    }
-
-    if (inputRef.current) {
-      const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
-        fields: ["geometry", "name", "formatted_address"],
-      });
-      autocompleteRef.current = autocomplete;
-
-      autocomplete.addListener("place_changed", () => {
-        const place = autocomplete.getPlace();
-        if (!place.geometry || !place.geometry.location) return;
-
-        const loc = place.geometry.location;
-        map.setCenter(loc);
-        map.setZoom(15);
-        marker.setPosition(loc);
-
-        const name = place.formatted_address || place.name || "Searched Location";
-        const lat = loc.lat();
-        const lng = loc.lng();
-        setTempLocation({ latitude: lat, longitude: lng, placeName: name });
-        onLocationSelect(lat, lng, name);
+        setTempLocation({ latitude: colomboCenter.lat, longitude: colomboCenter.lng, placeName: "Colombo, Sri Lanka", district: "Colombo" });
         if (inputRef.current) {
-          inputRef.current.value = name;
+          inputRef.current.value = "Colombo, Sri Lanka";
         }
-      });
-    }
+      } else {
+        map.setCenter(initialPos);
+        map.setZoom(13);
+        setTempLocation(selectedLocation);
+        if (inputRef.current && selectedLocation.placeName) {
+          inputRef.current.value = selectedLocation.placeName;
+        }
+      }
+
+      if (inputRef.current) {
+        const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
+          fields: ["geometry", "name", "formatted_address", "address_components"],
+        });
+        autocompleteRef.current = autocomplete;
+
+        autocomplete.addListener("place_changed", () => {
+          const place = autocomplete.getPlace();
+          if (!place.geometry || !place.geometry.location) return;
+
+          const loc = place.geometry.location;
+          map.setCenter(loc);
+          map.setZoom(15);
+          marker.setPosition(loc);
+
+          // formatted_address is the full structured string ("Talbot Town, Galle 80000, Sri Lanka")
+          // — always preferred over place.name for the address-scan fallback.
+          const name = place.formatted_address || place.name || "Searched Location";
+          const lat = loc.lat();
+          const lng = loc.lng();
+
+          // Try structured components first, then fall back to scanning the full
+          // formatted_address string (catches "Galle" embedded in the address).
+          const district =
+            extractDistrictFromComponents(place.address_components) ??
+            districtFromAddress(name) ??
+            undefined;
+
+          logGeocodingDebug("Autocomplete", lat, lng, null, place.address_components, district);
+
+          setTempLocation({ latitude: lat, longitude: lng, placeName: name, district });
+          onLocationSelect(lat, lng, name, district);
+          if (inputRef.current) {
+            inputRef.current.value = name;
+          }
+        });
+      }
 
     map.addListener("click", (e: any) => {
       const clickedLoc = e.latLng;
@@ -247,17 +499,26 @@ export default function IncidentMap({ language, onLocationSelect, selectedLocati
     if (!window.google || !window.google.maps) return;
     const geocoder = new window.google.maps.Geocoder();
     geocoder.geocode({ location: { lat, lng } }, (results: any, status: string) => {
-      if (status === "OK" && results[0]) {
+      if (status === "OK" && Array.isArray(results) && results.length > 0) {
+        // Use the first result's formatted_address as the human-readable place name
         const address = results[0].formatted_address;
-        setTempLocation({ latitude: lat, longitude: lng, placeName: address });
-        onLocationSelect(lat, lng, address);
+
+        // Scan ALL results for the district — results[0] is often a POI/premise
+        // that is missing administrative_area_level_2; deeper results carry it.
+        const district = extractDistrictFromAllResults(results) ?? undefined;
+
+        logGeocodingDebug("ReverseGeocode", lat, lng, results, null, district);
+
+        setTempLocation({ latitude: lat, longitude: lng, placeName: address, district });
+        onLocationSelect(lat, lng, address, district);
         if (inputRef.current) {
           inputRef.current.value = address;
         }
       } else {
         console.warn("[IncidentMap] Google Geocoder failed with status:", status, "Falling back to Nominatim OSM API.");
         const osmLang = language === "si" ? "si,en" : "en";
-        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=${osmLang}`, {
+        // Add addressdetails=1 so Nominatim returns the structured address object
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=${osmLang}&addressdetails=1`, {
           headers: {
             "Accept": "application/json",
             "User-Agent": "ChildSafetyApp/1.0"
@@ -270,8 +531,17 @@ export default function IncidentMap({ language, onLocationSelect, selectedLocati
           .then((data) => {
             if (data && data.display_name) {
               const address = data.display_name;
-              setTempLocation({ latitude: lat, longitude: lng, placeName: address });
-              onLocationSelect(lat, lng, address);
+              // Extract district using all available Nominatim fields + display_name fallback
+              const district = extractDistrictFromNominatim(data.address, address) ?? undefined;
+              // ─ Debug: inspect what Nominatim returned ─────────────────────────
+              console.log("[IncidentMap] 📍 Nominatim reverseGeocode result", {
+                displayName: address,
+                addressObject: data.address,
+                resolvedDistrict: district ?? "(none)",
+              });
+              // ─────────────────────────────────────────────────────────────────
+              setTempLocation({ latitude: lat, longitude: lng, placeName: address, district });
+              onLocationSelect(lat, lng, address, district);
               if (inputRef.current) {
                 inputRef.current.value = address;
               }
@@ -282,8 +552,9 @@ export default function IncidentMap({ language, onLocationSelect, selectedLocati
           .catch((err) => {
             console.error("[IncidentMap] OSM Geocode fallback failed:", err);
             const fallbackName = `Location (${lat.toFixed(5)}, ${lng.toFixed(5)})`;
-            setTempLocation({ latitude: lat, longitude: lng, placeName: fallbackName });
-            onLocationSelect(lat, lng, fallbackName);
+            // No district available from fallback — store undefined
+            setTempLocation({ latitude: lat, longitude: lng, placeName: fallbackName, district: undefined });
+            onLocationSelect(lat, lng, fallbackName, undefined);
             if (inputRef.current) {
               inputRef.current.value = fallbackName;
             }
@@ -297,9 +568,9 @@ export default function IncidentMap({ language, onLocationSelect, selectedLocati
     const query = inputRef.current.value.trim();
     if (!query) return;
 
-    // If query matches the currently selected tempLocation name, we just confirm it!
+    // If query matches the currently selected tempLocation, pass it through with district
     if (tempLocation && query === tempLocation.placeName) {
-      onLocationSelect(tempLocation.latitude, tempLocation.longitude, tempLocation.placeName);
+      onLocationSelect(tempLocation.latitude, tempLocation.longitude, tempLocation.placeName, tempLocation.district);
       return;
     }
 
@@ -307,22 +578,27 @@ export default function IncidentMap({ language, onLocationSelect, selectedLocati
     geocoder.geocode(
       { address: query },
       (results: any, status: string) => {
-        if (status === "OK" && results[0]) {
+        if (status === "OK" && Array.isArray(results) && results.length > 0) {
           const loc = results[0].geometry.location;
           if (googleMapRef.current && markerRef.current) {
             googleMapRef.current.setCenter(loc);
             googleMapRef.current.setZoom(14);
             markerRef.current.setPosition(loc);
           }
-          const name = results[0].formatted_address || results[0].name || query;
-          setTempLocation({ latitude: loc.lat(), longitude: loc.lng(), placeName: name });
-          onLocationSelect(loc.lat(), loc.lng(), name);
+          const name = results[0].formatted_address || query;
+          // Scan ALL results for district — same rationale as reverseGeocode
+          const district = extractDistrictFromAllResults(results) ?? undefined;
+
+          logGeocodingDebug("ManualSearch", loc.lat(), loc.lng(), results, null, district);
+          setTempLocation({ latitude: loc.lat(), longitude: loc.lng(), placeName: name, district });
+          onLocationSelect(loc.lat(), loc.lng(), name, district);
           if (inputRef.current) {
             inputRef.current.value = name;
           }
         } else {
           console.warn("[IncidentMap] Google Geocoder query failed with status:", status, "Falling back to Nominatim OSM search API.");
-          fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&accept-language=${language === "si" ? "si,en" : "en"}`, {
+          // Add addressdetails=1 so Nominatim returns the structured address object
+          fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&accept-language=${language === "si" ? "si,en" : "en"}&addressdetails=1`, {
             headers: {
               "Accept": "application/json",
               "User-Agent": "ChildSafetyApp/1.0"
@@ -338,16 +614,25 @@ export default function IncidentMap({ language, onLocationSelect, selectedLocati
                 const lat = parseFloat(item.lat);
                 const lng = parseFloat(item.lon);
                 const name = item.display_name;
-                
+                // Extract district using all Nominatim fields + display_name fallback
+                const district = extractDistrictFromNominatim(item.address, name) ?? undefined;
+                // ─ Debug ─────────────────────────────────────────────────────────
+                console.log("[IncidentMap] 🔍 handleManualSearch (Nominatim) result", {
+                  displayName: name,
+                  addressObject: item.address,
+                  resolvedDistrict: district ?? "(none)",
+                });
+                // ───────────────────────────────────────────────────────────────────
+
                 if (googleMapRef.current && markerRef.current) {
                   const loc = new window.google.maps.LatLng(lat, lng);
                   googleMapRef.current.setCenter(loc);
                   googleMapRef.current.setZoom(14);
                   markerRef.current.setPosition(loc);
                 }
-                
-                setTempLocation({ latitude: lat, longitude: lng, placeName: name });
-                onLocationSelect(lat, lng, name);
+
+                setTempLocation({ latitude: lat, longitude: lng, placeName: name, district });
+                onLocationSelect(lat, lng, name, district);
                 if (inputRef.current) {
                   inputRef.current.value = name;
                 }

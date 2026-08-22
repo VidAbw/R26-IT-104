@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 interface IncidentMapProps {
   language: string;
-  onLocationSelect: (latitude: number, longitude: number, placeName?: string) => void;
+  onLocationSelect: (latitude: number, longitude: number, placeName?: string, district?: string) => void;
   selectedLocation: { latitude: number; longitude: number; placeName?: string } | null;
 }
 

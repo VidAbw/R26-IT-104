@@ -25,6 +25,7 @@ import { ProtectivaHeader } from "../../components/ProtectivaHeader";
 import { ProtectivaSidebar, ProtectivaNavTab } from "../../components/ProtectivaSidebar";
 import { EmergencyAlertModal } from "../../components/EmergencyAlertModal";
 import { useAuth } from "../../contexts/AuthProvider";
+import DistrictLocationSummary from "../../src/component/DistrictLocationSummary";
 
 // Default Fallback IP
 const DEFAULT_API_URL = Platform.OS === "web" ? "http://127.0.0.1:8000" : "http://192.168.1.72:8000";
@@ -664,6 +665,9 @@ function OverviewDashboardView({
           </View>
         </View>
       </View>
+
+      {/* District Reported Locations Summary */}
+      <DistrictLocationSummary />
 
       {/* Bottom Hero Banner */}
       <View style={styles.heroSafetyBanner}>
