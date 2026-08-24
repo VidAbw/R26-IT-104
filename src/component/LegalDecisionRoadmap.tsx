@@ -580,8 +580,7 @@ export default function LegalDecisionRoadmap({ result, language }: Props) {
           <Text style={styles.categoriesLabel}>{t.categoriesLabel}</Text>
           <View style={styles.categoriesList}>
             {categories.map((cat) => {
-              const isSystemMatched = cat.id === activeCategory || 
-                result.classification.secondaryCategories.includes(cat.id);
+              const isSystemMatched = cat.id === activeCategory;
               
               return (
                 <View 

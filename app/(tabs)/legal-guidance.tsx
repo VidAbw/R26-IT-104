@@ -344,9 +344,6 @@ export default function LegalGuidanceScreen() {
     setResult(null)
     setRoadmapResult(null)
     try {
-      const roadmapData = buildRoadmapResult(description, activeLang);
-      setRoadmapResult(roadmapData);
-
       const data = await queryLegalRAG({
         description,
         language: activeLang,
@@ -356,6 +353,14 @@ export default function LegalGuidanceScreen() {
       setSubmittedDescription(description)
       setHasSubmitted(true)
       setIsEditingDescription(false)
+
+      const roadmapData = buildRoadmapResult(description, activeLang);
+      if (data && data.abuse_category && roadmapData && (roadmapData as any).classification) {
+        const catKey = data.abuse_category.toLowerCase().trim();
+        (roadmapData as any).classification.primaryCategory = catKey;
+        (roadmapData as any).classification.secondaryCategories = [];
+      }
+      setRoadmapResult(roadmapData);
 
       if (data && data.detected_language) {
         const backendLang = data.detected_language.toLowerCase()
