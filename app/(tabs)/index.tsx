@@ -54,6 +54,8 @@ function DashboardMain() {
   const [prediction, setPrediction] = useState<string>("");
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const recordingRef = useRef<Audio.Recording | null>(null);
+  const [lastAudioResult, setLastAudioResult] = useState<any>(null);
+  const [activeProfiles, setActiveProfiles] = useState<any[]>([]);
 
   // Modals & Mobile Drawer State
   const [selectedEmergencyAlert, setSelectedEmergencyAlert] = useState<any>(null);
@@ -129,6 +131,7 @@ function DashboardMain() {
         setListenerStatus("Online");
         setProfileCount(data.registered_profiles ?? 0);
         setParentName(data.parent_name ?? "");
+        if (data.active_profiles) setActiveProfiles(data.active_profiles);
       } else {
         setListenerStatus("Disconnected");
       }
@@ -142,6 +145,7 @@ function DashboardMain() {
       const res = await fetch(`${apiBaseUrl}/api/audio/last-result`);
       if (res.ok) {
         const data = await res.json();
+        setLastAudioResult(data);
         if (data.status && data.status !== "No data yet — waiting for ESP32 audio.") {
           setPrediction(
             `Status: ${data.status} | Vol: ${data.amplitude_db || 0} dB | Device: ${data.device_info ?? "ESP32"}`
@@ -263,6 +267,8 @@ function DashboardMain() {
                 alerts={alerts}
                 prediction={prediction}
                 isDiscreetMode={isDiscreetMode}
+                lastAudioResult={lastAudioResult}
+                activeProfiles={activeProfiles}
                 onNavigate={(tab) => setActiveTab(tab)}
                 onTriggerEmergency={triggerEmergencyAlert}
                 onStartGuardian={startGuardian}
@@ -410,6 +416,8 @@ interface OverviewProps {
   alerts: any[];
   prediction: string;
   isDiscreetMode: boolean;
+  lastAudioResult?: any;
+  activeProfiles?: any[];
   onNavigate: (tab: ProtectivaNavTab) => void;
   onTriggerEmergency: () => void;
   onStartGuardian: () => void;
@@ -423,6 +431,8 @@ function OverviewDashboardView({
   alerts,
   prediction,
   isDiscreetMode,
+  lastAudioResult,
+  activeProfiles = [],
   onNavigate,
   onTriggerEmergency,
   onStartGuardian,
@@ -452,6 +462,123 @@ function OverviewDashboardView({
             </Text>
           </View>
         </View>
+      </View>
+
+      {/* Real-Time Active Presence Status Card */}
+      <View
+        style={{
+          backgroundColor: '#FFFFFF',
+          borderRadius: 16,
+          padding: 16,
+          marginBottom: 16,
+          borderWidth: 1,
+          borderColor: '#E2E8F0',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 8,
+          elevation: 2,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: lastAudioResult?.active_speaker ? '#DCFCE7' : '#F1F5F9',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Ionicons
+                name={lastAudioResult?.active_speaker ? 'person' : 'shield-checkmark'}
+                size={22}
+                color={lastAudioResult?.active_speaker ? '#16A34A' : ProtectivaTheme.primaryDark}
+              />
+            </View>
+
+            <View>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: '#64748B' }}>
+                Active Presence with Child
+              </Text>
+              <Text style={{ fontSize: 16, fontWeight: '800', color: '#0F172A' }}>
+                {lastAudioResult?.active_speaker
+                  ? `${lastAudioResult.active_speaker} (${lastAudioResult.speaker_role || 'Guardian'})`
+                  : (parentName ? `${parentName} (Registered)` : 'Monitoring Area — Child is Safe')}
+              </Text>
+            </View>
+          </View>
+
+          {/* Status Badge */}
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 20,
+              backgroundColor: lastAudioResult?.active_speaker ? '#DCFCE7' : '#F8FAFC',
+              borderWidth: 1,
+              borderColor: lastAudioResult?.active_speaker ? '#86EFAC' : '#E2E8F0',
+              gap: 6,
+            }}
+          >
+            <View
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 4,
+                backgroundColor: lastAudioResult?.active_speaker ? '#16A34A' : '#64748B',
+              }}
+            />
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: '700',
+                color: lastAudioResult?.active_speaker ? '#16A34A' : '#475569',
+              }}
+            >
+              {lastAudioResult?.presence_status || (isOnline ? 'Active Monitoring' : 'Offline')}
+            </Text>
+          </View>
+        </View>
+
+        {/* Authorized Guardians List Chips */}
+        {activeProfiles.length > 0 && (
+          <View style={{ marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+              Authorized Caregivers ({activeProfiles.length})
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              {activeProfiles.map((p: any) => (
+                <View
+                  key={p.id}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    backgroundColor: '#F8FAFC',
+                    paddingHorizontal: 8,
+                    paddingVertical: 4,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: '#E2E8F0',
+                    gap: 4,
+                  }}
+                >
+                  <Ionicons name="checkmark-circle" size={14} color="#16A34A" />
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#334155' }}>
+                    {p.person_name}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: '#64748B' }}>
+                    ({p.role || 'Parent'})
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
       </View>
 
       {/* 3 Main Status Cards Grid */}
@@ -691,113 +818,391 @@ function OverviewDashboardView({
 // --- TAB 2: REGISTER VOICE TAB ---
 // ==========================================
 function RegisterVoiceTab({ apiBaseUrl }: { apiBaseUrl: string }) {
+  const ROLES = [
+    { id: "Mother", label: "Mother 👩" },
+    { id: "Father", label: "Father 👨" },
+    { id: "Guardian", label: "Guardian 🛡️" },
+    { id: "Nanny", label: "Nanny / Babysitter 🍼" },
+    { id: "Grandparent", label: "Grandparent 👵" },
+    { id: "Caregiver", label: "Caregiver 🧑‍🏫" },
+  ];
+
   const [parentName, setParentName] = useState("");
-  const [selectedFile, setSelectedFile] = useState<any>(null);
+  const [selectedRole, setSelectedRole] = useState("Mother");
+  const [recordedUri, setRecordedUri] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState("");
-  const [isRecording, setIsRecording] = useState(false);
-  const recordingRef = useRef<Audio.Recording | null>(null);
+  const [profiles, setProfiles] = useState<any[]>([]);
 
-  const pickAudioFile = async () => {
+  const recordingRef = useRef<Audio.Recording | null>(null);
+  const soundRef = useRef<Audio.Sound | null>(null);
+  const timerRef = useRef<any>(null);
+
+  useEffect(() => {
+    fetchProfiles();
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (soundRef.current) soundRef.current.unloadAsync();
+      if (recordingRef.current) recordingRef.current.stopAndUnloadAsync();
+    };
+  }, []);
+
+  const fetchProfiles = async () => {
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.All,
-        allowsEditing: false,
+      const res = await fetch(`${apiBaseUrl}/api/audio/profiles`);
+      if (res.ok) {
+        const data = await res.json();
+        setProfiles(data.profiles || []);
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const startRecording = async () => {
+    try {
+      setMessage("");
+      setRecordedUri(null);
+      if (soundRef.current) {
+        await soundRef.current.unloadAsync();
+        soundRef.current = null;
+      }
+
+      const perm = await Audio.requestPermissionsAsync();
+      if (perm.status !== "granted") {
+        Alert.alert("Permission Required", "Microphone permission is required to record voice.");
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSelectedFile(result.assets[0]);
-        setMessage(`Selected file: ${result.assets[0].fileName || 'Audio recording'}`);
+      const recording = new Audio.Recording();
+      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+      await recording.startAsync();
+
+      recordingRef.current = recording;
+      setIsRecording(true);
+      setRecordingSeconds(0);
+
+      timerRef.current = setInterval(() => {
+        setRecordingSeconds((prev) => prev + 1);
+      }, 1000);
+    } catch (err: any) {
+      Alert.alert("Recording Error", err.message || "Failed to access microphone.");
+    }
+  };
+
+  const stopRecording = async () => {
+    try {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
       }
-    } catch (err) {
-      Alert.alert("Error", "Could not pick audio file.");
+
+      if (!recordingRef.current) return;
+
+      setIsRecording(false);
+      await recordingRef.current.stopAndUnloadAsync();
+      const uri = recordingRef.current.getURI();
+      recordingRef.current = null;
+
+      if (uri) {
+        setRecordedUri(uri);
+        setMessage(`🎙️ Recorded ${recordingSeconds}s voice sample ready to register.`);
+      }
+    } catch {
+      Alert.alert("Error", "Failed to finalize audio recording.");
+    }
+  };
+
+  const playPreview = async () => {
+    if (!recordedUri) return;
+    try {
+      if (soundRef.current) {
+        await soundRef.current.unloadAsync();
+        soundRef.current = null;
+      }
+      setIsPlaying(true);
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: recordedUri },
+        { shouldPlay: true }
+      );
+      soundRef.current = sound;
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          setIsPlaying(false);
+        }
+      });
+    } catch {
+      setIsPlaying(false);
     }
   };
 
   const handleRegister = async () => {
     if (!parentName.trim()) {
-      Alert.alert("Required", "Please enter guardian/parent name.");
+      Alert.alert("Required", "Please enter guardian / parent name.");
       return;
     }
-    if (!selectedFile) {
-      Alert.alert("Required", "Please record or select an audio file.");
+    if (!recordedUri) {
+      Alert.alert("Required", "Please record a voice sample first (3-5 seconds).");
       return;
     }
 
     try {
       setIsUploading(true);
-      setMessage("Registering voice profile...");
+      setMessage("Extracting 20-dim MFCC embeddings & saving to Supabase...");
 
       const formData = new FormData();
-      formData.append("parent_name", parentName);
+      formData.append("parent_name", parentName.trim());
+      formData.append("role", selectedRole);
 
       if (Platform.OS === "web") {
-        const res = await fetch(selectedFile.uri);
+        const res = await fetch(recordedUri);
         const blob = await res.blob();
-        const fileObj = new File([blob], "voice.wav", { type: blob.type || "audio/wav" });
+        const fileObj = new File([blob], "parent_voice.wav", { type: "audio/wav" });
         formData.append("file", fileObj);
       } else {
         formData.append("file", {
-          uri: Platform.OS === "android" ? selectedFile.uri : selectedFile.uri.replace("file://", ""),
-          name: "voice.wav",
+          uri: Platform.OS === "android" ? recordedUri : recordedUri.replace("file://", ""),
+          name: "parent_voice.wav",
           type: "audio/wav",
         } as any);
       }
 
-      const response = await fetch(`${apiBaseUrl}/api/audio/register-voice`, {
+      let response = await fetch(`${apiBaseUrl}/api/audio/register-parent`, {
         method: "POST",
         body: formData,
       });
 
-      const data = await response.json();
-      if (response.ok) {
-        setMessage(`✅ Registered successfully for ${parentName}!`);
-        setSelectedFile(null);
-      } else {
-        setMessage(`❌ Error: ${data.detail || "Registration failed"}`);
+      if (!response.ok) {
+        response = await fetch(`${apiBaseUrl}/api/audio/register-voice`, {
+          method: "POST",
+          body: formData,
+        });
       }
-    } catch (err) {
-      setMessage("❌ Failed to connect to server.");
+
+      const data = await response.json();
+      if (response.ok && data.success !== false) {
+        setMessage(`✅ Voice profile registered successfully for ${parentName} (${selectedRole})!`);
+        setRecordedUri(null);
+        setParentName("");
+        fetchProfiles();
+      } else {
+        setMessage(`❌ Error: ${data.detail || data.error || "Registration failed"}`);
+      }
+    } catch (err: any) {
+      setMessage(`❌ Failed to connect to server: ${err.message}`);
     } finally {
       setIsUploading(false);
     }
   };
 
+  const handleDeactivate = async (profileId: string) => {
+    try {
+      const res = await fetch(`${apiBaseUrl}/api/audio/profiles/${profileId}`, { method: "DELETE" });
+      if (res.ok) {
+        Alert.alert("Deactivated", "Voice profile has been deactivated.");
+        fetchProfiles();
+      }
+    } catch {
+      Alert.alert("Error", "Could not deactivate profile.");
+    }
+  };
+
   return (
     <View style={styles.tabCard}>
-      <Text style={styles.tabCardTitle}>Voice Registration & Guardian Profile</Text>
+      <Text style={styles.tabCardTitle}>Voice Registration & Guardian Profiles</Text>
       <Text style={styles.tabCardSub}>
-        Register parent/guardian voice embeddings so Protectiva can identify authorized voices during monitoring.
+        Register parent/caregiver voice embeddings with specific roles. The AI extracts a 20-dimensional MFCC fingerprint so DTW recognizes authorized voices and tracks caregiver presence.
       </Text>
 
-      <View style={{ marginTop: 16 }}>
-        <Text style={styles.inputLabel}>Guardian / Parent Name</Text>
+      <View style={{ marginTop: 18 }}>
+        <Text style={styles.inputLabel}>Guardian / Caregiver Name</Text>
         <TextInput
           style={styles.textInput}
-          placeholder="e.g. John Doe"
+          placeholder="e.g. Vidushi, Vidusha, Nanny Sarah"
+          placeholderTextColor="#9CA3AF"
           value={parentName}
           onChangeText={setParentName}
         />
 
-        <Text style={[styles.inputLabel, { marginTop: 14 }]}>Audio Sample</Text>
-        <TouchableOpacity style={styles.filePickerBtn} onPress={pickAudioFile}>
-          <Ionicons name="cloud-upload-outline" size={24} color={ProtectivaTheme.primaryDark} style={{ marginRight: 8 }} />
-          <Text style={styles.filePickerBtnText}>
-            {selectedFile ? "Change Audio File" : "Choose Audio File / Sample"}
-          </Text>
-        </TouchableOpacity>
+        {/* Role Selector Pills */}
+        <Text style={[styles.inputLabel, { marginTop: 14 }]}>Select Caregiver Role</Text>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+          {ROLES.map((r) => {
+            const isSelected = selectedRole === r.id;
+            return (
+              <TouchableOpacity
+                key={r.id}
+                onPress={() => setSelectedRole(r.id)}
+                style={{
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 20,
+                  borderWidth: 1.5,
+                  borderColor: isSelected ? ProtectivaTheme.primaryDark : "#CBD5E1",
+                  backgroundColor: isSelected ? "#E6F4F1" : "#FFFFFF",
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: isSelected ? "700" : "500",
+                    color: isSelected ? ProtectivaTheme.primaryDark : "#475569",
+                  }}
+                >
+                  {r.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
-        {message ? <Text style={styles.statusMsgText}>{message}</Text> : null}
+        {/* Live Mic Recording Studio */}
+        <View style={{ backgroundColor: "#F8FAFC", borderRadius: 14, padding: 16, marginTop: 4, borderWidth: 1, borderColor: "#E2E8F0" }}>
+          <Text style={{ fontSize: 13, fontWeight: "700", color: "#334155", marginBottom: 6 }}>
+            🎙️ Voice Sample Recording
+          </Text>
+          <Text style={{ fontSize: 12, color: "#64748B", marginBottom: 14 }}>
+            Press record and speak normally for 3 to 5 seconds:{"\n"}
+            <Text style={{ fontStyle: "italic", color: "#0F172A", fontWeight: "600" }}>
+              "Hi, I am {parentName || "Parent"} ({selectedRole}), this is my authorized voice profile."
+            </Text>
+          </Text>
+
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+            {!isRecording ? (
+              <TouchableOpacity
+                style={{
+                  backgroundColor: "#DC2626",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingVertical: 12,
+                  paddingHorizontal: 18,
+                  borderRadius: 10,
+                  gap: 8,
+                }}
+                onPress={startRecording}
+                disabled={isUploading}
+              >
+                <Ionicons name="mic" size={20} color="#FFFFFF" />
+                <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}>
+                  {recordedUri ? "Record Again" : "Start Recording"}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={{
+                  backgroundColor: "#B91C1C",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingVertical: 12,
+                  paddingHorizontal: 18,
+                  borderRadius: 10,
+                  gap: 8,
+                }}
+                onPress={stopRecording}
+              >
+                <View style={{ width: 12, height: 12, borderRadius: 2, backgroundColor: "#FFFFFF" }} />
+                <Text style={{ color: "#FFFFFF", fontWeight: "800", fontSize: 14 }}>
+                  Stop Recording ({recordingSeconds}s)
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {recordedUri && !isRecording && (
+              <TouchableOpacity
+                style={{
+                  backgroundColor: "#0284C7",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  paddingVertical: 12,
+                  paddingHorizontal: 16,
+                  borderRadius: 10,
+                  gap: 6,
+                }}
+                onPress={playPreview}
+                disabled={isPlaying}
+              >
+                <Ionicons name={isPlaying ? "volume-high" : "play"} size={18} color="#FFFFFF" />
+                <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}>
+                  {isPlaying ? "Playing..." : "Listen Preview"}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        {message ? (
+          <Text style={[styles.statusMsgText, { marginTop: 12, fontWeight: "600" }]}>{message}</Text>
+        ) : null}
 
         <TouchableOpacity
-          style={[styles.primaryActionBtn, isUploading && { opacity: 0.6 }]}
+          style={[styles.primaryActionBtn, (isUploading || isRecording || !recordedUri) && { opacity: 0.5 }]}
           onPress={handleRegister}
-          disabled={isUploading}
+          disabled={isUploading || isRecording || !recordedUri}
         >
           <Text style={styles.primaryActionBtnText}>
-            {isUploading ? "Registering..." : "Register Voice Profile"}
+            {isUploading ? "Registering DTW Profile..." : `Save & Register Profile as ${selectedRole}`}
           </Text>
         </TouchableOpacity>
+
+        {/* Existing Registered Voice Profiles */}
+        {profiles.length > 0 && (
+          <View style={{ marginTop: 24, borderTopWidth: 1, borderTopColor: "#E2E8F0", paddingTop: 16 }}>
+            <Text style={{ fontSize: 14, fontWeight: "700", color: "#1E293B", marginBottom: 10 }}>
+              Registered Authorized Profiles ({profiles.filter((p) => p.is_active).length} Active)
+            </Text>
+            {profiles.map((p) => (
+              <View
+                key={p.id}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  backgroundColor: p.is_active ? "#F8FAFC" : "#F1F5F9",
+                  padding: 12,
+                  borderRadius: 10,
+                  marginBottom: 8,
+                  borderWidth: 1,
+                  borderColor: p.is_active ? "#E2E8F0" : "#CBD5E1",
+                }}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+                  <Ionicons
+                    name={p.is_active ? "checkmark-circle" : "close-circle"}
+                    size={20}
+                    color={p.is_active ? "#16A34A" : "#94A3B8"}
+                  />
+                  <View>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                      <Text style={{ fontWeight: "700", color: "#0F172A", fontSize: 14 }}>{p.person_name}</Text>
+                      <View style={{ backgroundColor: "#E6F4F1", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                        <Text style={{ color: ProtectivaTheme.primaryDark, fontSize: 11, fontWeight: "700" }}>{p.role || "Parent"}</Text>
+                      </View>
+                    </View>
+                    {p.last_verified && (
+                      <Text style={{ color: "#64748B", fontSize: 11, marginTop: 2 }}>
+                        Last verified nearby: {new Date(p.last_verified).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                {p.is_active && (
+                  <TouchableOpacity onPress={() => handleDeactivate(p.id)}>
+                    <Text style={{ color: "#DC2626", fontSize: 12, fontWeight: "600" }}>Deactivate</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
       </View>
     </View>
   );
