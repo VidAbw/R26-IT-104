@@ -11,6 +11,7 @@ import {
   Image as RNImage,
   useWindowDimensions,
   Modal,
+  ActivityIndicator,
 } from "react-native";
 import { Image } from "expo-image";
 import { Audio } from "expo-av";
@@ -41,6 +42,7 @@ export default function DashboardContainer() {
 function DashboardMain() {
   const { width } = useWindowDimensions();
   const isDesktop = width > 768;
+  const { userEmail, userName } = useAuth();
 
   const [activeTab, setActiveTab] = useState<ProtectivaNavTab>("overview");
   const [apiBaseUrl, setApiBaseUrl] = useState<string>(process.env.EXPO_PUBLIC_API_URL || DEFAULT_API_URL);
@@ -100,7 +102,7 @@ function DashboardMain() {
       clearInterval(statusInterval);
       clearInterval(resultInterval);
     };
-  }, [apiBaseUrl]);
+  }, [apiBaseUrl, userEmail]);
 
   useEffect(() => {
     fetchAlerts();
@@ -125,13 +127,26 @@ function DashboardMain() {
 
   const fetchStatus = async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/audio/status`);
+      const url = userEmail && userEmail.trim()
+        ? `${apiBaseUrl}/api/audio/status?user_email=${encodeURIComponent(userEmail.trim().toLowerCase())}`
+        : `${apiBaseUrl}/api/audio/status`;
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
         setListenerStatus("Online");
-        setProfileCount(data.registered_profiles ?? 0);
         setParentName(data.parent_name ?? "");
-        if (data.active_profiles) setActiveProfiles(data.active_profiles);
+        if (data.active_profiles) {
+          // Strict user-email isolation filter
+          let filtered = data.active_profiles;
+          if (userEmail && userEmail.trim()) {
+            const cleanEmail = userEmail.trim().toLowerCase();
+            filtered = filtered.filter((p: any) => !p.user_email || p.user_email.toLowerCase() === cleanEmail);
+          }
+          setActiveProfiles(filtered);
+          setProfileCount(filtered.length);
+        } else {
+          setProfileCount(data.registered_profiles ?? 0);
+        }
       } else {
         setListenerStatus("Disconnected");
       }
@@ -277,7 +292,12 @@ function DashboardMain() {
             )}
 
             {activeTab === "voice_monitoring" && (
-              <RegisterVoiceTab apiBaseUrl={apiBaseUrl} />
+              <RegisterVoiceTab
+                apiBaseUrl={apiBaseUrl}
+                userEmail={userEmail}
+                userName={userName}
+                onProfilesUpdated={fetchStatus}
+              />
             )}
 
             {activeTab === "nanny_camera" && (
@@ -817,7 +837,17 @@ function OverviewDashboardView({
 // ==========================================
 // --- TAB 2: REGISTER VOICE TAB ---
 // ==========================================
-function RegisterVoiceTab({ apiBaseUrl }: { apiBaseUrl: string }) {
+function RegisterVoiceTab({
+  apiBaseUrl,
+  userEmail,
+  userName,
+  onProfilesUpdated,
+}: {
+  apiBaseUrl: string;
+  userEmail?: string;
+  userName?: string;
+  onProfilesUpdated?: () => void;
+}) {
   const ROLES = [
     { id: "Mother", label: "Mother 👩" },
     { id: "Father", label: "Father 👨" },
@@ -827,19 +857,23 @@ function RegisterVoiceTab({ apiBaseUrl }: { apiBaseUrl: string }) {
     { id: "Caregiver", label: "Caregiver 🧑‍🏫" },
   ];
 
-  const [parentName, setParentName] = useState("");
+  const [parentName, setParentName] = useState(userName && userName !== "Guardian" ? userName : "");
   const [selectedRole, setSelectedRole] = useState("Mother");
   const [recordedUri, setRecordedUri] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [profiles, setProfiles] = useState<any[]>([]);
 
   const recordingRef = useRef<Audio.Recording | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
   const timerRef = useRef<any>(null);
+
+  const cleanEmail = (userEmail || "").trim().toLowerCase();
+  const STORAGE_KEY = cleanEmail ? `childsafety_voice_profiles_${cleanEmail}` : "childsafety_voice_profiles_anon";
 
   useEffect(() => {
     fetchProfiles();
@@ -848,14 +882,40 @@ function RegisterVoiceTab({ apiBaseUrl }: { apiBaseUrl: string }) {
       if (soundRef.current) soundRef.current.unloadAsync();
       if (recordingRef.current) recordingRef.current.stopAndUnloadAsync();
     };
-  }, []);
+  }, [apiBaseUrl, userEmail]);
 
   const fetchProfiles = async () => {
     try {
-      const res = await fetch(`${apiBaseUrl}/api/audio/profiles`);
+      const url = cleanEmail
+        ? `${apiBaseUrl}/api/audio/profiles?user_email=${encodeURIComponent(cleanEmail)}`
+        : `${apiBaseUrl}/api/audio/profiles`;
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        setProfiles(data.profiles || []);
+        let list = data.profiles || [];
+        
+        // Strict client-side filter by user_email when available
+        if (cleanEmail) {
+          // Check locally stored IDs for fallback in case backend Supabase column wasn't populated yet
+          let localIds: string[] = [];
+          try {
+            const raw = await AsyncStorage.getItem(STORAGE_KEY);
+            if (raw) localIds = JSON.parse(raw);
+          } catch {
+            /* ignore */
+          }
+
+          list = list.filter((p: any) => {
+            if (p.user_email) {
+              return p.user_email.toLowerCase() === cleanEmail;
+            }
+            if (localIds.length > 0) {
+              return localIds.includes(String(p.id));
+            }
+            return true;
+          });
+        }
+        setProfiles(list);
       }
     } catch {
       /* ignore */
@@ -946,7 +1006,7 @@ function RegisterVoiceTab({ apiBaseUrl }: { apiBaseUrl: string }) {
 
   const handleRegister = async () => {
     if (!parentName.trim()) {
-      Alert.alert("Required", "Please enter guardian / parent name.");
+      Alert.alert("Required", "Please enter guardian / caregiver name.");
       return;
     }
     if (!recordedUri) {
@@ -961,6 +1021,9 @@ function RegisterVoiceTab({ apiBaseUrl }: { apiBaseUrl: string }) {
       const formData = new FormData();
       formData.append("parent_name", parentName.trim());
       formData.append("role", selectedRole);
+      if (cleanEmail) {
+        formData.append("user_email", cleanEmail);
+      }
 
       if (Platform.OS === "web") {
         const res = await fetch(recordedUri);
@@ -989,10 +1052,23 @@ function RegisterVoiceTab({ apiBaseUrl }: { apiBaseUrl: string }) {
 
       const data = await response.json();
       if (response.ok && data.success !== false) {
-        setMessage(`✅ Voice profile registered successfully for ${parentName} (${selectedRole})!`);
+        setMessage(`✅ Voice profile registered successfully for "${parentName}" (${selectedRole})!`);
         setRecordedUri(null);
-        setParentName("");
+
+        // Save locally for user isolation
+        try {
+          const raw = await AsyncStorage.getItem(STORAGE_KEY);
+          const localIds = raw ? JSON.parse(raw) : [];
+          if (data.id && !localIds.includes(String(data.id))) {
+            localIds.push(String(data.id));
+            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(localIds));
+          }
+        } catch {
+          /* ignore */
+        }
+
         fetchProfiles();
+        onProfilesUpdated?.();
       } else {
         setMessage(`❌ Error: ${data.detail || data.error || "Registration failed"}`);
       }
@@ -1009,15 +1085,82 @@ function RegisterVoiceTab({ apiBaseUrl }: { apiBaseUrl: string }) {
       if (res.ok) {
         Alert.alert("Deactivated", "Voice profile has been deactivated.");
         fetchProfiles();
+        onProfilesUpdated?.();
       }
     } catch {
       Alert.alert("Error", "Could not deactivate profile.");
     }
   };
 
+  const handleDeleteProfile = (profile: any) => {
+    const name = profile.person_name || "this voice profile";
+    const confirmMessage = `Are you sure you want to delete this voice profile for "${name}"? This action cannot be undone.`;
+
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(confirmMessage);
+      if (confirmed) {
+        executeDelete(profile.id, name);
+      }
+    } else {
+      Alert.alert(
+        "Delete Voice Profile",
+        confirmMessage,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: () => executeDelete(profile.id, name),
+          },
+        ]
+      );
+    }
+  };
+
+  const executeDelete = async (profileId: string, name: string) => {
+    try {
+      setIsDeletingId(profileId);
+      const res = await fetch(`${apiBaseUrl}/api/audio/profiles/${profileId}?permanent=true`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (res.ok && data.success !== false) {
+        // Remove from local storage
+        try {
+          const raw = await AsyncStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            const localIds = JSON.parse(raw).filter((id: string) => id !== String(profileId));
+            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(localIds));
+          }
+        } catch {
+          /* ignore */
+        }
+
+        setMessage(`✅ Voice profile for "${name}" was deleted successfully.`);
+        fetchProfiles();
+        onProfilesUpdated?.();
+      } else {
+        Alert.alert("Error", data.error || "Failed to delete voice profile.");
+      }
+    } catch (err: any) {
+      Alert.alert("Network Error", `Could not connect to server: ${err.message}`);
+    } finally {
+      setIsDeletingId(null);
+    }
+  };
+
   return (
     <View style={styles.tabCard}>
-      <Text style={styles.tabCardTitle}>Voice Registration & Guardian Profiles</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+        <Text style={styles.tabCardTitle}>Voice Registration & Guardian Profiles</Text>
+        {cleanEmail ? (
+          <View style={{ backgroundColor: "#E6F4F1", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: ProtectivaTheme.primary }}>
+            <Text style={{ fontSize: 12, fontWeight: "600", color: ProtectivaTheme.primaryDark }}>
+              👤 Account: {cleanEmail}
+            </Text>
+          </View>
+        ) : null}
+      </View>
       <Text style={styles.tabCardSub}>
         Register parent/caregiver voice embeddings with specific roles. The AI extracts a 20-dimensional MFCC fingerprint so DTW recognizes authorized voices and tracks caregiver presence.
       </Text>
@@ -1076,7 +1219,7 @@ function RegisterVoiceTab({ apiBaseUrl }: { apiBaseUrl: string }) {
             </Text>
           </Text>
 
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             {!isRecording ? (
               <TouchableOpacity
                 style={{
@@ -1154,55 +1297,135 @@ function RegisterVoiceTab({ apiBaseUrl }: { apiBaseUrl: string }) {
         </TouchableOpacity>
 
         {/* Existing Registered Voice Profiles */}
-        {profiles.length > 0 && (
-          <View style={{ marginTop: 24, borderTopWidth: 1, borderTopColor: "#E2E8F0", paddingTop: 16 }}>
-            <Text style={{ fontSize: 14, fontWeight: "700", color: "#1E293B", marginBottom: 10 }}>
-              Registered Authorized Profiles ({profiles.filter((p) => p.is_active).length} Active)
+        <View style={{ marginTop: 24, borderTopWidth: 1, borderTopColor: "#E2E8F0", paddingTop: 16 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            <Text style={{ fontSize: 15, fontWeight: "700", color: "#1E293B" }}>
+              Authorized Caregiver Voice Profiles ({profiles.filter((p) => p.is_active).length} Active)
             </Text>
-            {profiles.map((p) => (
+            <TouchableOpacity onPress={fetchProfiles} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <Ionicons name="refresh-outline" size={16} color={ProtectivaTheme.primaryDark} />
+              <Text style={{ fontSize: 12, color: ProtectivaTheme.primaryDark, fontWeight: "600" }}>Refresh</Text>
+            </TouchableOpacity>
+          </View>
+
+          {profiles.length === 0 ? (
+            <View style={{ backgroundColor: "#F8FAFC", padding: 18, borderRadius: 12, alignItems: "center", borderWidth: 1, borderColor: "#E2E8F0" }}>
+              <Ionicons name="mic-outline" size={32} color="#94A3B8" style={{ marginBottom: 6 }} />
+              <Text style={{ fontSize: 13, color: "#64748B", fontWeight: "600", textAlign: "center" }}>
+                No voice profiles registered for {cleanEmail || "this account"} yet.
+              </Text>
+              <Text style={{ fontSize: 12, color: "#94A3B8", textAlign: "center", marginTop: 2 }}>
+                Record a 3-5 second sample above to add your first authorized voice.
+              </Text>
+            </View>
+          ) : (
+            profiles.map((p) => (
               <View
                 key={p.id}
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  backgroundColor: p.is_active ? "#F8FAFC" : "#F1F5F9",
-                  padding: 12,
-                  borderRadius: 10,
-                  marginBottom: 8,
+                  backgroundColor: p.is_active ? "#FFFFFF" : "#F1F5F9",
+                  padding: 14,
+                  borderRadius: 12,
+                  marginBottom: 10,
                   borderWidth: 1,
                   borderColor: p.is_active ? "#E2E8F0" : "#CBD5E1",
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.04,
+                  shadowRadius: 3,
                 }}
               >
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-                  <Ionicons
-                    name={p.is_active ? "checkmark-circle" : "close-circle"}
-                    size={20}
-                    color={p.is_active ? "#16A34A" : "#94A3B8"}
-                  />
-                  <View>
-                    <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                      <Text style={{ fontWeight: "700", color: "#0F172A", fontSize: 14 }}>{p.person_name}</Text>
-                      <View style={{ backgroundColor: "#E6F4F1", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12, flex: 1 }}>
+                  <View
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 18,
+                      backgroundColor: p.is_active ? "#E6F4F1" : "#E2E8F0",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Ionicons
+                      name={p.is_active ? "mic" : "mic-off"}
+                      size={18}
+                      color={p.is_active ? ProtectivaTheme.primaryDark : "#94A3B8"}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <Text style={{ fontWeight: "700", color: "#0F172A", fontSize: 15 }}>{p.person_name}</Text>
+                      <View style={{ backgroundColor: "#E6F4F1", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>
                         <Text style={{ color: ProtectivaTheme.primaryDark, fontSize: 11, fontWeight: "700" }}>{p.role || "Parent"}</Text>
                       </View>
+                      {!p.is_active && (
+                        <View style={{ backgroundColor: "#FEE2E2", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                          <Text style={{ color: "#DC2626", fontSize: 10, fontWeight: "700" }}>Deactivated</Text>
+                        </View>
+                      )}
                     </View>
-                    {p.last_verified && (
-                      <Text style={{ color: "#64748B", fontSize: 11, marginTop: 2 }}>
+                    {p.last_verified ? (
+                      <Text style={{ color: "#64748B", fontSize: 11, marginTop: 3 }}>
                         Last verified nearby: {new Date(p.last_verified).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </Text>
+                    ) : (
+                      <Text style={{ color: "#94A3B8", fontSize: 11, marginTop: 3 }}>
+                        Registered voice profile
                       </Text>
                     )}
                   </View>
                 </View>
-                {p.is_active && (
-                  <TouchableOpacity onPress={() => handleDeactivate(p.id)}>
-                    <Text style={{ color: "#DC2626", fontSize: 12, fontWeight: "600" }}>Deactivate</Text>
+
+                {/* Actions: Deactivate & Delete */}
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                  {p.is_active && (
+                    <TouchableOpacity
+                      onPress={() => handleDeactivate(p.id)}
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 6,
+                        borderRadius: 8,
+                        backgroundColor: "#F1F5F9",
+                        borderWidth: 1,
+                        borderColor: "#E2E8F0",
+                      }}
+                    >
+                      <Text style={{ color: "#64748B", fontSize: 12, fontWeight: "600" }}>Deactivate</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity
+                    onPress={() => handleDeleteProfile(p)}
+                    disabled={isDeletingId === p.id}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 4,
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 8,
+                      backgroundColor: "#FEF2F2",
+                      borderWidth: 1,
+                      borderColor: "#FECACA",
+                    }}
+                  >
+                    {isDeletingId === p.id ? (
+                      <ActivityIndicator size="small" color="#DC2626" />
+                    ) : (
+                      <>
+                        <Ionicons name="trash-outline" size={15} color="#DC2626" />
+                        <Text style={{ color: "#DC2626", fontSize: 12, fontWeight: "700" }}>Delete</Text>
+                      </>
+                    )}
                   </TouchableOpacity>
-                )}
+                </View>
               </View>
-            ))}
-          </View>
-        )}
+            ))
+          )}
+        </View>
       </View>
     </View>
   );
