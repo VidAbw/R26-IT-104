@@ -161,9 +161,9 @@ function DashboardMain() {
       if (res.ok) {
         const data = await res.json();
         setLastAudioResult(data);
-        if (data.status && data.status !== "No data yet — waiting for ESP32 audio.") {
+        if (data.status && !data.status.includes("No data yet")) {
           setPrediction(
-            `Status: ${data.status} | Vol: ${data.amplitude_db || 0} dB | Device: ${data.device_info ?? "ESP32"}`
+            `Status: ${data.status} (${data.presence_status || "Active Monitoring"})`
           );
         }
       }
@@ -250,29 +250,6 @@ function DashboardMain() {
 
         <View style={styles.mainContentPane}>
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            {/* IP Config Toolbar */}
-            <View style={styles.networkConfigBar}>
-              <Text style={styles.networkLabel}>Server IP:</Text>
-              {isEditingIp ? (
-                <View style={styles.ipEditRow}>
-                  <TextInput
-                    style={styles.ipInput}
-                    value={tempIp}
-                    onChangeText={setTempIp}
-                    autoCapitalize="none"
-                    keyboardType="url"
-                  />
-                  <TouchableOpacity style={styles.btnSaveIp} onPress={saveIp}>
-                    <Text style={styles.btnSaveIpText}>Save</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity onPress={() => setIsEditingIp(true)}>
-                  <Text style={styles.ipValue}>{apiBaseUrl} ✎</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
             {/* Render Tab Views */}
             {activeTab === "overview" && (
               <OverviewDashboardView
@@ -320,7 +297,14 @@ function DashboardMain() {
 
             {activeTab === "resources" && <ResourcesView />}
 
-            {activeTab === "settings" && <SettingsView apiBaseUrl={apiBaseUrl} saveIp={saveIp} />}
+            {activeTab === "settings" && (
+              <SettingsView
+                apiBaseUrl={apiBaseUrl}
+                tempIp={tempIp}
+                setTempIp={setTempIp}
+                saveIp={saveIp}
+              />
+            )}
           </ScrollView>
         </View>
       </View>
@@ -471,135 +455,194 @@ function OverviewDashboardView({
             You're all set. Everything looks good and your child is protected.
           </Text>
         </View>
-        <View style={styles.systemOnlineBadge}>
-          <View style={[styles.statusDot, { backgroundColor: isOnline ? '#16A34A' : '#EF4444' }]} />
-          <View style={{ marginLeft: 6 }}>
-            <Text style={styles.systemOnlineText}>
-              ● {isOnline ? 'System Online' : 'System Offline'}
+        <View
+          style={[
+            styles.systemOnlineBadge,
+            {
+              backgroundColor: isOnline ? '#E6F4F1' : '#FEF2F2',
+              borderColor: isOnline ? '#99F6E4' : '#FECACA',
+            },
+          ]}
+        >
+          <View style={[styles.statusDot, { backgroundColor: isOnline ? '#16A34A' : '#DC2626' }]} />
+          <View style={{ marginLeft: 8 }}>
+            <Text style={[styles.systemOnlineText, { color: isOnline ? '#0F766E' : '#991B1B' }]}>
+              {isOnline ? 'System Online' : 'System Offline'}
             </Text>
-            <Text style={styles.systemOnlineSub}>
-              {isOnline ? 'All systems are active' : 'Connect to server'}
+            <Text style={[styles.systemOnlineSub, { color: isOnline ? '#0D9488' : '#B91C1C' }]}>
+              {isOnline ? 'All systems active' : 'Connect to server'}
             </Text>
           </View>
         </View>
       </View>
 
       {/* Real-Time Active Presence Status Card */}
-      <View
-        style={{
-          backgroundColor: '#FFFFFF',
-          borderRadius: 16,
-          padding: 16,
-          marginBottom: 16,
-          borderWidth: 1,
-          borderColor: '#E2E8F0',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.05,
-          shadowRadius: 8,
-          elevation: 2,
-        }}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <View
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: lastAudioResult?.active_speaker ? '#DCFCE7' : '#F1F5F9',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Ionicons
-                name={lastAudioResult?.active_speaker ? 'person' : 'shield-checkmark'}
-                size={22}
-                color={lastAudioResult?.active_speaker ? '#16A34A' : ProtectivaTheme.primaryDark}
-              />
-            </View>
+      {(() => {
+        const isSpeakerActive = Boolean(
+          lastAudioResult?.active_speaker && 
+          (lastAudioResult?.presence_status === 'Active Nearby' || lastAudioResult?.presence_status === 'Present')
+        );
+        const activeSpeakerName = isSpeakerActive ? lastAudioResult.active_speaker : null;
+        const activeSpeakerRole = isSpeakerActive ? (lastAudioResult.speaker_role || 'Caregiver') : null;
 
-            <View>
-              <Text style={{ fontSize: 12, fontWeight: '600', color: '#64748B' }}>
-                Active Presence with Child
-              </Text>
-              <Text style={{ fontSize: 16, fontWeight: '800', color: '#0F172A' }}>
-                {lastAudioResult?.active_speaker
-                  ? `${lastAudioResult.active_speaker} (${lastAudioResult.speaker_role || 'Guardian'})`
-                  : (parentName ? `${parentName} (Registered)` : 'Monitoring Area — Child is Safe')}
-              </Text>
-            </View>
-          </View>
-
-          {/* Status Badge */}
+        return (
           <View
             style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingHorizontal: 12,
-              paddingVertical: 6,
-              borderRadius: 20,
-              backgroundColor: lastAudioResult?.active_speaker ? '#DCFCE7' : '#F8FAFC',
-              borderWidth: 1,
-              borderColor: lastAudioResult?.active_speaker ? '#86EFAC' : '#E2E8F0',
-              gap: 6,
+              backgroundColor: '#FFFFFF',
+              borderRadius: 16,
+              padding: 18,
+              marginBottom: 16,
+              borderWidth: 1.5,
+              borderColor: isSpeakerActive ? '#86EFAC' : '#E2E8F0',
+              shadowColor: isSpeakerActive ? '#16A34A' : '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: isSpeakerActive ? 0.12 : 0.04,
+              shadowRadius: 8,
+              elevation: 2,
             }}
           >
-            <View
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: 4,
-                backgroundColor: lastAudioResult?.active_speaker ? '#16A34A' : '#64748B',
-              }}
-            />
-            <Text
-              style={{
-                fontSize: 12,
-                fontWeight: '700',
-                color: lastAudioResult?.active_speaker ? '#16A34A' : '#475569',
-              }}
-            >
-              {lastAudioResult?.presence_status || (isOnline ? 'Active Monitoring' : 'Offline')}
-            </Text>
-          </View>
-        </View>
-
-        {/* Authorized Guardians List Chips */}
-        {activeProfiles.length > 0 && (
-          <View style={{ marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
-            <Text style={{ fontSize: 11, fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-              Authorized Caregivers ({activeProfiles.length})
-            </Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-              {activeProfiles.map((p: any) => (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
                 <View
-                  key={p.id}
                   style={{
-                    flexDirection: 'row',
+                    width: 48,
+                    height: 48,
+                    borderRadius: 24,
+                    backgroundColor: isSpeakerActive ? '#DCFCE7' : '#F1F5F9',
                     alignItems: 'center',
-                    backgroundColor: '#F8FAFC',
-                    paddingHorizontal: 8,
-                    paddingVertical: 4,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: '#E2E8F0',
-                    gap: 4,
+                    justifyContent: 'center',
+                    borderWidth: isSpeakerActive ? 2 : 1,
+                    borderColor: isSpeakerActive ? '#4ADE80' : '#E2E8F0',
                   }}
                 >
-                  <Ionicons name="checkmark-circle" size={14} color="#16A34A" />
-                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#334155' }}>
-                    {p.person_name}
+                  <Ionicons
+                    name={isSpeakerActive ? 'person' : 'shield-checkmark'}
+                    size={24}
+                    color={isSpeakerActive ? '#16A34A' : ProtectivaTheme.primaryDark}
+                  />
+                </View>
+
+                <View>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: isSpeakerActive ? '#15803D' : '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    {isSpeakerActive ? '🟢 Caregiver Detected Near Child' : 'Active Presence with Child'}
                   </Text>
-                  <Text style={{ fontSize: 11, color: '#64748B' }}>
-                    ({p.role || 'Parent'})
+                  <Text style={{ fontSize: 17, fontWeight: '800', color: isSpeakerActive ? '#065F46' : '#0F172A', marginTop: 2 }}>
+                    {isSpeakerActive
+                      ? `${activeSpeakerName} (${activeSpeakerRole})`
+                      : 'Monitoring Area — Child is Safe'}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: isSpeakerActive ? '#16A34A' : '#94A3B8', marginTop: 2 }}>
+                    {isSpeakerActive
+                      ? 'Real-time acoustic presence verified • Active with child'
+                      : 'No caregiver currently detected nearby • Room acoustic level: Safe'}
                   </Text>
                 </View>
-              ))}
+              </View>
+
+              {/* Status Badge */}
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  borderRadius: 20,
+                  backgroundColor: isSpeakerActive ? '#DCFCE7' : '#F8FAFC',
+                  borderWidth: 1.5,
+                  borderColor: isSpeakerActive ? '#86EFAC' : '#CBD5E1',
+                  gap: 8,
+                }}
+              >
+                <View
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
+                    backgroundColor: isSpeakerActive ? '#16A34A' : (isOnline ? '#64748B' : '#DC2626'),
+                  }}
+                />
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '800',
+                    color: isSpeakerActive ? '#16A34A' : (isOnline ? '#334155' : '#DC2626'),
+                  }}
+                >
+                  {isSpeakerActive ? 'Active Nearby' : (isOnline ? 'Monitoring Area' : 'Offline')}
+                </Text>
+              </View>
             </View>
+
+            {/* Authorized Guardians List Chips */}
+            {activeProfiles.length > 0 && (
+              <View style={{ marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                    Authorized Caregivers ({activeProfiles.length})
+                  </Text>
+                  <Text style={{ fontSize: 11, color: '#94A3B8' }}>
+                    {isSpeakerActive ? '1 Active Nearby' : 'All on Standby'}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {activeProfiles.map((p: any) => {
+                    const isThisPersonActive = isSpeakerActive && (
+                      (p.person_name && activeSpeakerName && p.person_name.trim().toLowerCase() === activeSpeakerName.trim().toLowerCase()) ||
+                      p.is_currently_nearby
+                    );
+
+                    return (
+                      <View
+                        key={p.id}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          backgroundColor: isThisPersonActive ? '#DCFCE7' : '#F8FAFC',
+                          paddingHorizontal: 10,
+                          paddingVertical: 6,
+                          borderRadius: 14,
+                          borderWidth: isThisPersonActive ? 1.5 : 1,
+                          borderColor: isThisPersonActive ? '#86EFAC' : '#E2E8F0',
+                          gap: 6,
+                          shadowColor: isThisPersonActive ? '#16A34A' : '#000',
+                          shadowOffset: { width: 0, height: 1 },
+                          shadowOpacity: isThisPersonActive ? 0.15 : 0.02,
+                          shadowRadius: 3,
+                        }}
+                      >
+                        <Ionicons
+                          name={isThisPersonActive ? 'radio-button-on' : 'checkmark-circle-outline'}
+                          size={15}
+                          color={isThisPersonActive ? '#16A34A' : '#94A3B8'}
+                        />
+                        <Text style={{ fontSize: 12, fontWeight: isThisPersonActive ? '800' : '600', color: isThisPersonActive ? '#065F46' : '#334155' }}>
+                          {p.person_name}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: isThisPersonActive ? '#15803D' : '#64748B', fontWeight: isThisPersonActive ? '700' : '400' }}>
+                          ({p.role || 'Parent'})
+                        </Text>
+                        <View
+                          style={{
+                            backgroundColor: isThisPersonActive ? '#BBF7D0' : '#E2E8F0',
+                            paddingHorizontal: 6,
+                            paddingVertical: 2,
+                            borderRadius: 8,
+                            marginLeft: 2,
+                          }}
+                        >
+                          <Text style={{ fontSize: 10, fontWeight: '700', color: isThisPersonActive ? '#166534' : '#64748B' }}>
+                            {isThisPersonActive ? '🟢 Active Nearby' : 'Standby'}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
           </View>
-        )}
-      </View>
+        );
+      })()}
 
       {/* 3 Main Status Cards Grid */}
       <View style={styles.statusCardsRow}>
@@ -974,7 +1017,11 @@ function RegisterVoiceTab({
 
       if (uri) {
         setRecordedUri(uri);
-        setMessage(`🎙️ Recorded ${recordingSeconds}s voice sample ready to register.`);
+        if (recordingSeconds < 2) {
+          setMessage("⚠️ Recording was short (< 2s). Please record 3 to 5 seconds of spoken voice for high accuracy.");
+        } else {
+          setMessage(`🎙️ Recorded ${recordingSeconds}s voice sample ready to register.`);
+        }
       }
     } catch {
       Alert.alert("Error", "Failed to finalize audio recording.");
@@ -1010,13 +1057,13 @@ function RegisterVoiceTab({
       return;
     }
     if (!recordedUri) {
-      Alert.alert("Required", "Please record a voice sample first (3-5 seconds).");
+      Alert.alert("Required", "Please record a voice sample first (3-5 seconds of speaking).");
       return;
     }
 
     try {
       setIsUploading(true);
-      setMessage("Extracting 20-dim MFCC embeddings & saving to Supabase...");
+      setMessage("Analyzing vocal features and extracting voice profile...");
 
       const formData = new FormData();
       formData.append("parent_name", parentName.trim());
@@ -1070,7 +1117,8 @@ function RegisterVoiceTab({
         fetchProfiles();
         onProfilesUpdated?.();
       } else {
-        setMessage(`❌ Error: ${data.detail || data.error || "Registration failed"}`);
+        const errDetail = data.error || data.detail || "Registration failed. No voice was detected.";
+        setMessage(`❌ ${errDetail}`);
       }
     } catch (err: any) {
       setMessage(`❌ Failed to connect to server: ${err.message}`);
@@ -1162,7 +1210,7 @@ function RegisterVoiceTab({
         ) : null}
       </View>
       <Text style={styles.tabCardSub}>
-        Register parent/caregiver voice embeddings with specific roles. The AI extracts a 20-dimensional MFCC fingerprint so DTW recognizes authorized voices and tracks caregiver presence.
+        Register authorized voice profiles for parents and caregivers. Protectiva uses advanced AI voice verification to identify family members and monitor safety.
       </Text>
 
       <View style={{ marginTop: 18 }}>
@@ -1209,15 +1257,21 @@ function RegisterVoiceTab({
 
         {/* Live Mic Recording Studio */}
         <View style={{ backgroundColor: "#F8FAFC", borderRadius: 14, padding: 16, marginTop: 4, borderWidth: 1, borderColor: "#E2E8F0" }}>
-          <Text style={{ fontSize: 13, fontWeight: "700", color: "#334155", marginBottom: 6 }}>
-            🎙️ Voice Sample Recording
+          <Text style={{ fontSize: 13, fontWeight: "700", color: "#334155", marginBottom: 4 }}>
+            🎙️ Voice Sample Recording Studio
           </Text>
-          <Text style={{ fontSize: 12, color: "#64748B", marginBottom: 14 }}>
+          <Text style={{ fontSize: 12, color: "#64748B", marginBottom: 10 }}>
             Press record and speak normally for 3 to 5 seconds:{"\n"}
             <Text style={{ fontStyle: "italic", color: "#0F172A", fontWeight: "600" }}>
               "Hi, I am {parentName || "Parent"} ({selectedRole}), this is my authorized voice profile."
             </Text>
           </Text>
+          <View style={{ backgroundColor: "#FEF3C7", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, marginBottom: 14, flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Ionicons name="information-circle" size={16} color="#D97706" />
+            <Text style={{ fontSize: 11, color: "#92400E", fontWeight: "600", flex: 1 }}>
+              Voice Activity Detection is active. You must speak clearly into the mic — silence or background room noise will be rejected.
+            </Text>
+          </View>
 
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             {!isRecording ? (
@@ -1283,7 +1337,59 @@ function RegisterVoiceTab({
         </View>
 
         {message ? (
-          <Text style={[styles.statusMsgText, { marginTop: 12, fontWeight: "600" }]}>{message}</Text>
+          <View
+            style={{
+              padding: 12,
+              borderRadius: 10,
+              borderWidth: 1,
+              marginTop: 12,
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 8,
+              backgroundColor: message.startsWith("❌")
+                ? "#FEF2F2"
+                : message.startsWith("✅")
+                ? "#DCFCE7"
+                : "#E0F2FE",
+              borderColor: message.startsWith("❌")
+                ? "#FECACA"
+                : message.startsWith("✅")
+                ? "#86EFAC"
+                : "#BAE6FD",
+            }}
+          >
+            <Ionicons
+              name={
+                message.startsWith("❌")
+                  ? "alert-circle"
+                  : message.startsWith("✅")
+                  ? "checkmark-circle"
+                  : "information-circle"
+              }
+              size={20}
+              color={
+                message.startsWith("❌")
+                  ? "#DC2626"
+                  : message.startsWith("✅")
+                  ? "#16A34A"
+                  : "#0284C7"
+              }
+            />
+            <Text
+              style={{
+                fontSize: 13,
+                fontWeight: "600",
+                flex: 1,
+                color: message.startsWith("❌")
+                  ? "#991B1B"
+                  : message.startsWith("✅")
+                  ? "#166534"
+                  : "#0369A1",
+              }}
+            >
+              {message}
+            </Text>
+          </View>
         ) : null}
 
         <TouchableOpacity
@@ -1292,7 +1398,7 @@ function RegisterVoiceTab({
           disabled={isUploading || isRecording || !recordedUri}
         >
           <Text style={styles.primaryActionBtnText}>
-            {isUploading ? "Registering DTW Profile..." : `Save & Register Profile as ${selectedRole}`}
+            {isUploading ? "Extracting Voice & Registering..." : `Save & Register Profile as ${selectedRole}`}
           </Text>
         </TouchableOpacity>
 
@@ -1757,11 +1863,46 @@ function ResourcesView() {
   );
 }
 
-function SettingsView({ apiBaseUrl, saveIp }: { apiBaseUrl: string; saveIp: () => void }) {
+function SettingsView({
+  apiBaseUrl,
+  tempIp,
+  setTempIp,
+  saveIp,
+}: {
+  apiBaseUrl: string;
+  tempIp: string;
+  setTempIp: (val: string) => void;
+  saveIp: () => void;
+}) {
   return (
     <View style={styles.tabCard}>
       <Text style={styles.tabCardTitle}>Settings & Configuration</Text>
-      <Text style={styles.tabCardSub}>Configure backend connectivity and alert threshold options.</Text>
+      <Text style={styles.tabCardSub}>
+        Configure server endpoint settings and guardian parameters.
+      </Text>
+
+      <View style={{ marginTop: 16 }}>
+        <Text style={styles.inputLabel}>Backend Server URL / IP Address</Text>
+        <View style={{ flexDirection: "row", gap: 10, alignItems: "center", marginTop: 4 }}>
+          <TextInput
+            style={[styles.textInput, { flex: 1 }]}
+            value={tempIp}
+            onChangeText={setTempIp}
+            autoCapitalize="none"
+            keyboardType="url"
+            placeholder="http://127.0.0.1:8000"
+          />
+          <TouchableOpacity
+            style={[styles.primaryActionBtn, { paddingHorizontal: 16, paddingVertical: 10 }]}
+            onPress={saveIp}
+          >
+            <Text style={styles.primaryActionBtnText}>Save IP</Text>
+          </TouchableOpacity>
+        </View>
+        <Text style={{ fontSize: 12, color: "#64748B", marginTop: 8 }}>
+          Connected endpoint: <Text style={{ fontWeight: "700", color: ProtectivaTheme.primaryDark }}>{apiBaseUrl}</Text>
+        </Text>
+      </View>
     </View>
   );
 }
