@@ -776,7 +776,7 @@ function OverviewDashboardView({
               <Text style={styles.sectionTitle}>Emergency Contacts</Text>
             </View>
             <Text style={styles.sectionSubtitle}>
-              Reach out to trusted contacts or services in an emergency.
+              Contact official Sri Lankan child-protection and emergency services.
             </Text>
           </View>
           <TouchableOpacity onPress={() => onNavigate("emergency_support")}>
@@ -790,24 +790,24 @@ function OverviewDashboardView({
           <View style={styles.contactPill}>
             <Ionicons name="headset-outline" size={20} color={ProtectivaTheme.primaryDark} style={{ marginRight: 8 }} />
             <View>
-              <Text style={styles.contactName}>Guardian Helpline</Text>
-              <Text style={styles.contactDetail}>24/7 Support</Text>
+              <Text style={styles.contactName}>NCPA Child Helpline (1929)</Text>
+              <Text style={styles.contactDetail}>Child protection & abuse reporting</Text>
             </View>
           </View>
 
           <View style={styles.contactPill}>
             <Ionicons name="heart-outline" size={20} color="#EA580C" style={{ marginRight: 8 }} />
             <View>
-              <Text style={styles.contactName}>Childline India</Text>
-              <Text style={styles.contactDetail}>1098</Text>
+              <Text style={styles.contactName}>Sri Lanka Police Emergency (119)</Text>
+              <Text style={styles.contactDetail}>Immediate emergency assistance</Text>
             </View>
           </View>
 
           <View style={styles.contactPill}>
             <Ionicons name="shield-outline" size={20} color="#8B5CF6" style={{ marginRight: 8 }} />
             <View>
-              <Text style={styles.contactName}>Women Helpline</Text>
-              <Text style={styles.contactDetail}>181</Text>
+              <Text style={styles.contactName}>Women Helpline (1938)</Text>
+              <Text style={styles.contactDetail}>Counselling & support</Text>
             </View>
           </View>
         </View>
