@@ -67,7 +67,7 @@ export const ProtectivaHeader: React.FC<ProtectivaHeaderProps> = ({
 
             <TouchableOpacity style={styles.quickEscapeBtn} onPress={handleQuickEscape}>
               <Ionicons name="walk-outline" size={18} color="#FFFFFF" style={{ marginRight: 4 }} />
-              <Text style={styles.quickEscapeText}>Quick Escape</Text>
+              <Text style={styles.quickEscapeText}>Logout</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
