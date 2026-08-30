@@ -1,0 +1,4 @@
+- [x] Implement native fallback component `src/component/IncidentMap.tsx`
+- [x] Implement web Google Maps component `src/component/IncidentMap.web.tsx`
+- [x] Integrate map component into `app/(tabs)/legal-guidance.tsx`
+- [x] Verify compilation and functionality
