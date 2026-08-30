@@ -7,6 +7,7 @@ export type ProtectivaNavTab =
   | 'overview'
   | 'voice_monitoring'
   | 'nanny_camera'
+  | 'safe_quest'
   | 'legal_guidance'
   | 'alerts_history'
   | 'emergency_support'
@@ -28,6 +29,7 @@ export const ProtectivaSidebar: React.FC<ProtectivaSidebarProps> = ({
     { id: 'overview', label: 'Overview', icon: 'grid-outline' },
     { id: 'voice_monitoring', label: 'Voice Monitoring', icon: 'mic-outline' },
     { id: 'nanny_camera', label: 'Nanny Camera', icon: 'videocam-outline' },
+    { id: 'safe_quest', label: 'SafeQuest', icon: 'game-controller-outline' },
     { id: 'legal_guidance', label: 'Legal Guidance', icon: 'scale-outline' },
     { id: 'alerts_history', label: 'Alerts & History', icon: 'notifications-outline', badge: alertCount > 0 },
     { id: 'emergency_support', label: 'Emergency Support', icon: 'call-outline' },

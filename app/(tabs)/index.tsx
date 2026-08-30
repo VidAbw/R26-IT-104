@@ -24,6 +24,7 @@ import { ProtectivaTheme } from "../../constants/theme";
 import { DiscreetModeProvider, useDiscreetMode } from "../../contexts/DiscreetModeContext";
 import { ProtectivaHeader } from "../../components/ProtectivaHeader";
 import { ProtectivaSidebar, ProtectivaNavTab } from "../../components/ProtectivaSidebar";
+import { SafeQuestTab } from "../../components/SafeQuestTab";
 import { EmergencyAlertModal } from "../../components/EmergencyAlertModal";
 import { useAuth } from "../../contexts/AuthProvider";
 import DistrictLocationSummary from "../../src/component/DistrictLocationSummary";
@@ -284,6 +285,8 @@ function DashboardMain() {
             {activeTab === "nanny_camera" && (
               <NannyCamTab apiBaseUrl={apiBaseUrl} />
             )}
+
+            {activeTab === "safe_quest" && <SafeQuestTab />}
 
             {activeTab === "legal_guidance" && <LegalGuidanceScreen />}
 
@@ -717,6 +720,28 @@ function OverviewDashboardView({
             <Text style={styles.cardActionBtnText}>Get Guidance</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Card 4: SafeQuest Adventure */}
+        <View style={styles.statusCard}>
+          <View style={styles.cardHeaderRow}>
+            <View style={[styles.cardIconCircle, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="game-controller-outline" size={22} color="#D97706" />
+            </View>
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <Text style={styles.statusCardTitle}>SafeQuest Game</Text>
+              <Text style={[styles.statusBadgeText, { color: '#D97706' }]}>Ages 6–9</Text>
+            </View>
+          </View>
+          <Text style={styles.cardDesc}>
+            Interactive child-safety learning game with 20 story quest levels.
+          </Text>
+          <TouchableOpacity
+            style={[styles.cardActionBtn, { backgroundColor: '#D97706' }]}
+            onPress={() => onNavigate("safe_quest")}
+          >
+            <Text style={styles.cardActionBtnText}>Play Game</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Middle Section: Recent Alerts & Quick Actions */}
@@ -782,6 +807,15 @@ function OverviewDashboardView({
               <Ionicons name="shield-checkmark-outline" size={22} color={ProtectivaTheme.primaryDark} />
               <Text style={styles.quickActionLabel}>Start Monitoring</Text>
               <Text style={styles.quickActionSub}>Begin voice protection</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickActionTile}
+              onPress={() => onNavigate("safe_quest")}
+            >
+              <Ionicons name="game-controller-outline" size={22} color="#D97706" />
+              <Text style={[styles.quickActionLabel, { color: '#D97706' }]}>SafeQuest Game</Text>
+              <Text style={styles.quickActionSub}>Play safety adventure</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
