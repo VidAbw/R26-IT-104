@@ -26,7 +26,20 @@ export const ProtectivaTheme = {
   badgeOrange: '#EA580C',
   badgeOrangeBg: '#FFEDD5',
   cardShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05)',
+
+  // Child Safety Professional Gradients
+  gradients: {
+    // Guardian Trust: Biometric Teal to Oceanic Blue
+    primaryCTA: ['#0F766E', '#0E7490', '#0284C7'] as const,
+    // Deep Security Shield: Midnight Slate to Deep Navy
+    securityShield: ['#0F172A', '#1E3A8A', '#0D9488'] as const,
+    // Active Acoustic Verification: Deep Teal to Bright Emerald
+    acousticActive: ['#0F766E', '#059669'] as const,
+    // Subtle Ambient Card Surface
+    ambientCard: ['#F8FAFC', '#F0FDFA'] as const,
+  },
 };
+
 
 export const Colors = {
   light: {

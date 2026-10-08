@@ -5,6 +5,7 @@ import { ProtectivaTheme } from '../constants/theme';
 
 export type ProtectivaNavTab =
   | 'overview'
+  | 'child_monitoring'
   | 'voice_monitoring'
   | 'nanny_camera'
   | 'safe_quest'
@@ -27,8 +28,7 @@ export const ProtectivaSidebar: React.FC<ProtectivaSidebarProps> = ({
 }) => {
   const menuItems: { id: ProtectivaNavTab; label: string; icon: keyof typeof Ionicons.glyphMap; badge?: boolean }[] = [
     { id: 'overview', label: 'Overview', icon: 'grid-outline' },
-    { id: 'voice_monitoring', label: 'Voice Monitoring', icon: 'mic-outline' },
-    { id: 'nanny_camera', label: 'Nanny Camera', icon: 'videocam-outline' },
+    { id: 'child_monitoring', label: 'Child Monitoring', icon: 'videocam-outline' },
     { id: 'safe_quest', label: 'SafeQuest', icon: 'game-controller-outline' },
     { id: 'legal_guidance', label: 'Legal Guidance', icon: 'scale-outline' },
     { id: 'alerts_history', label: 'Alerts & History', icon: 'notifications-outline', badge: alertCount > 0 },
@@ -41,7 +41,10 @@ export const ProtectivaSidebar: React.FC<ProtectivaSidebarProps> = ({
     <View style={styles.sidebarContainer}>
       <View style={styles.navList}>
         {menuItems.map((item) => {
-          const isActive = activeTab === item.id;
+          const isMonitoringItem =
+            item.id === 'child_monitoring' &&
+            (activeTab === 'child_monitoring' || activeTab === 'voice_monitoring' || activeTab === 'nanny_camera');
+          const isActive = activeTab === item.id || isMonitoringItem;
           return (
             <TouchableOpacity
               key={item.id}

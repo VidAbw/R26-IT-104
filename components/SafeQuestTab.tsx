@@ -9,6 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ProtectivaTheme } from '../constants/theme';
 
 const SAFETQUEST_URL = 'https://ashy-beach-065984203.7.azurestaticapps.net/';
@@ -88,11 +89,16 @@ export const SafeQuestTab: React.FC = () => {
         <View style={styles.heroHeaderContent}>
           <View style={styles.heroBadgeRow}>
             <View style={styles.heroPillBadge}>
-              <Ionicons name="sparkles" size={14} color="#B45309" style={{ marginRight: 5 }} />
-              <Text style={styles.heroPillText}>CHILD SAFETY ADVENTURE</Text>
+              <Ionicons name="shield-checkmark" size={13} color="#0F766E" />
+              <Text style={styles.heroPillText}>Child Safety Adventure</Text>
             </View>
             <View style={styles.agePill}>
+              <Ionicons name="people-outline" size={13} color="#475569" />
               <Text style={styles.agePillText}>Ages 6–9</Text>
+            </View>
+            <View style={styles.verifiedPill}>
+              <Ionicons name="checkmark-circle" size={13} color="#16A34A" />
+              <Text style={styles.verifiedPillText}>Parent Guided</Text>
             </View>
           </View>
 
@@ -104,17 +110,26 @@ export const SafeQuestTab: React.FC = () => {
           {/* Action Buttons */}
           <View style={styles.heroActionRow}>
             <TouchableOpacity style={styles.primaryPlayButton} onPress={handlePlayGame} activeOpacity={0.88}>
-              <Ionicons name="play" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-              <Text style={styles.primaryPlayButtonText}>PLAY GAME</Text>
-              <Ionicons name="open-outline" size={16} color="#FFFFFF" style={{ marginLeft: 6, opacity: 0.85 }} />
+              <LinearGradient
+                colors={['#0F766E', '#0E7490', '#0284C7']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0.85 }}
+                style={styles.playBtnGradient}
+              >
+                <View style={styles.playIconBadge}>
+                  <Ionicons name="play" size={13} color="#FFFFFF" />
+                </View>
+                <Text style={styles.primaryPlayButtonText}>Play SafeQuest</Text>
+                <Ionicons name="open-outline" size={14} color="rgba(255, 255, 255, 0.85)" />
+              </LinearGradient>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={styles.secondaryLinkButton}
               onPress={() => Linking.openURL(SAFETQUEST_URL)}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
             >
-              <Ionicons name="globe-outline" size={18} color={ProtectivaTheme.primaryDark} style={{ marginRight: 6 }} />
+              <Ionicons name="globe-outline" size={16} color={ProtectivaTheme.primaryDark} />
               <Text style={styles.secondaryLinkButtonText}>Open in Browser</Text>
             </TouchableOpacity>
           </View>
@@ -199,19 +214,27 @@ export const SafeQuestTab: React.FC = () => {
       </View>
 
       {/* Bottom Launch Card */}
-      <View style={styles.bottomLaunchCard}>
+      <LinearGradient
+        colors={['#0F172A', '#0F766E', '#0284C7']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.bottomLaunchCard}
+      >
         <View style={styles.bottomLaunchContent}>
-          <Ionicons name="game-controller" size={32} color="#FFFFFF" style={{ marginBottom: 8 }} />
+          <View style={styles.bottomLaunchIconContainer}>
+            <Ionicons name="game-controller" size={26} color="#FFFFFF" />
+          </View>
           <Text style={styles.bottomLaunchTitle}>Ready to Play SafeQuest?</Text>
           <Text style={styles.bottomLaunchSub}>
-            Start your family’s child-safety journey now in your web browser.
+            Start your family’s child-safety journey now in your web browser with guided audio quests.
           </Text>
           <TouchableOpacity style={styles.bottomLaunchBtn} onPress={handlePlayGame} activeOpacity={0.88}>
-            <Ionicons name="play-circle" size={22} color="#0F172A" style={{ marginRight: 8 }} />
-            <Text style={styles.bottomLaunchBtnText}>LAUNCH SAFETQUEST</Text>
+            <Ionicons name="play-circle" size={20} color="#0F766E" style={{ marginRight: 6 }} />
+            <Text style={styles.bottomLaunchBtnText}>Launch SafeQuest Web Game</Text>
+            <Ionicons name="open-outline" size={15} color="#0F766E" style={{ marginLeft: 6, opacity: 0.8 }} />
           </TouchableOpacity>
         </View>
-      </View>
+      </LinearGradient>
     </View>
   );
 };
@@ -250,31 +273,52 @@ const styles = StyleSheet.create({
   heroPillBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    backgroundColor: '#E6F4F1',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: '#99F6E4',
+    gap: 6,
   },
   heroPillText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#B45309',
-    letterSpacing: 0.5,
+    fontWeight: '800',
+    color: '#0F766E',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
   },
   agePill: {
-    backgroundColor: '#E6F4F1',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#CCEADF',
+    borderColor: '#E2E8F0',
+    gap: 5,
   },
   agePillText: {
     fontSize: 11,
     fontWeight: '700',
-    color: ProtectivaTheme.primaryDark,
+    color: '#334155',
+  },
+  verifiedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+    gap: 5,
+  },
+  verifiedPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#15803D',
   },
   heroTitle: {
     fontSize: 30,
@@ -296,35 +340,55 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   primaryPlayButton: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    shadowColor: '#0D9488',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  playBtnGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F59E0B',
     paddingHorizontal: 22,
     paddingVertical: 13,
+    borderRadius: 14,
+    gap: 10,
+  },
+  playIconBadge: {
+    width: 24,
+    height: 24,
     borderRadius: 12,
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
   },
   primaryPlayButtonText: {
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '800',
-    letterSpacing: 0.8,
+    letterSpacing: 0.3,
   },
   secondaryLinkButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#E6F4F1',
-    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 18,
     paddingVertical: 13,
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#CCEADF',
+    borderColor: '#CBD5E1',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+    gap: 6,
   },
   secondaryLinkButtonText: {
     color: ProtectivaTheme.primaryDark,
@@ -494,62 +558,78 @@ const styles = StyleSheet.create({
   topicPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F0FDF4',
+    backgroundColor: '#F8FAFC',
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#BBF7D0',
+    borderColor: '#E2E8F0',
   },
   topicPillText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#15803D',
+    color: '#1E293B',
   },
 
   // Bottom Launch
   bottomLaunchCard: {
-    backgroundColor: '#0F766E',
     borderRadius: 20,
-    padding: 26,
+    padding: 28,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#0F766E',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    elevation: 4,
   },
   bottomLaunchContent: {
     alignItems: 'center',
-    maxWidth: 480,
+    maxWidth: 500,
+  },
+  bottomLaunchIconContainer: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   bottomLaunchTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '800',
     color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 6,
+    letterSpacing: -0.3,
   },
   bottomLaunchSub: {
     fontSize: 13,
     color: '#CCFBF1',
     textAlign: 'center',
     lineHeight: 19,
-    marginBottom: 18,
+    marginBottom: 20,
   },
   bottomLaunchBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FDE047',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 24,
     paddingVertical: 13,
-    borderRadius: 12,
+    borderRadius: 14,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    elevation: 2,
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
   },
   bottomLaunchBtnText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
-    color: '#0F172A',
-    letterSpacing: 0.5,
+    color: '#0F766E',
+    letterSpacing: 0.2,
   },
 });
